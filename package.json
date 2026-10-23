@@ -9,8 +9,9 @@
     "dev:web": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "start": "tsx server/index.ts",
-    "test": "node --test --import tsx tests/api.test.ts",
-    "typecheck": "tsc -b --pretty false"
+    "test": "node --test --import tsx tests/api.test.ts tests/demo.test.mjs",
+    "typecheck": "tsc -b --pretty false",
+    "build:demo": "tsc -b && vite build --mode demo"
   },
   "dependencies": {
     "cors": "^2.8.5",

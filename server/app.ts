@@ -72,6 +72,8 @@ export function createApp(db: Db = createDatabase()): Express {
     const parsed = taskSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: 'Проверьте данные задачи', issues: parsed.error.flatten() });
     const task = parsed.data;
+    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(task.projectId)) return res.status(404).json({ message: 'Проект не найден' });
+    if (task.assigneeId !== null && !db.prepare('SELECT id FROM members WHERE id = ?').get(task.assigneeId)) return res.status(404).json({ message: 'Исполнитель не найден' });
     const result = db.prepare(`
       INSERT INTO tasks (title, description, status, priority, project_id, assignee_id, due_date)
       VALUES ($title, $description, $status, $priority, $projectId, $assigneeId, $dueDate)

@@ -31,3 +31,18 @@ describe('Flowboard API', () => {
     assert.equal(updated.body.status, 'done');
   });
 });
+
+
+describe('task validation', () => {
+  it('rejects invalid input and missing references without a server error', async () => {
+    assert.equal((await request(app).post('/api/tasks').send({})).status,400);
+    const body={ title:'New task',priority:'medium',projectId:999,assigneeId:null,dueDate:'2030-01-10' };
+    assert.equal((await request(app).post('/api/tasks').send(body)).status,404);
+    assert.equal((await request(app).post('/api/tasks').send({ ...body,projectId:1,assigneeId:999 })).status,404);
+  });
+  it('rejects an invalid status and returns 404 for an unknown task', async () => {
+    assert.equal((await request(app).patch('/api/tasks/1/status').send({status:'invalid'})).status,400);
+    assert.equal((await request(app).patch('/api/tasks/999/status').send({status:'done'})).status,404);
+    assert.equal((await request(app).delete('/api/tasks/999')).status,404);
+  });
+});

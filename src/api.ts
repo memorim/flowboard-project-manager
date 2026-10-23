@@ -1,3 +1,4 @@
+import { demoApi } from './demo-api';
 import type { Dashboard, Member, Project, Status, Task } from './types';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -7,7 +8,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   return response.json();
 }
 
-export const api = {
+const serverApi = {
   dashboard: () => request<Dashboard>('/api/dashboard'),
   meta: () => request<{ projects: Project[]; members: Member[] }>('/api/meta'),
   tasks: (search = '') => request<Task[]>(`/api/tasks${search ? `?search=${encodeURIComponent(search)}` : ''}`),
@@ -16,3 +17,5 @@ export const api = {
   deleteTask: (id: number) => request(`/api/tasks/${id}`, { method: 'DELETE' }),
 };
 
+
+export const api = import.meta.env.VITE_DEMO_MODE === 'true' ? demoApi : serverApi;
