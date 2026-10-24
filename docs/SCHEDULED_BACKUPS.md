@@ -8,7 +8,7 @@
 | `BACKUP_INTERVAL_HOURS` | `24` |
 | `BACKUP_RETENTION_DAYS` | `7` |
 | `BACKUP_DIR` | `data/backups` |
-| `BACKUP_ALERT_URL` / `BACKUP_ALERT_TOKEN` | пусто |
+| `BACKUP_ALERT_WEBHOOK_URL` / `BACKUP_ALERT_TOKEN` | пусто |
 
 Просмотр статуса: `pnpm backup:status`. Разовая копия и восстановление описаны в [предыдущем руководстве](ROUND3.md).
 
