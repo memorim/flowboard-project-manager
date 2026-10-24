@@ -1,71 +1,17 @@
-# Пример API
+# Пример Node API
 
-Ответ получен при локальном запуске проверяемой версии. Данные демонстрационные.
+API ниже предназначен для доверенного локального запуска. X-Demo-Actor — выбор демонстрационного участника, не аутентификация. Размещённая версия игнорирует этот заголовок и требует входа через ChatGPT.
 
 ```http
-GET /api/meta HTTP/1.1
-Host: localhost:4100
-```
+POST /api/tasks
+Content-Type: application/json
+X-Demo-Actor: 4
 
-HTTP 200
+{"title":"Подготовить макет","description":"Проверить мобильную версию","status":"todo","priority":"medium","projectId":1,"assigneeId":null,"dueDate":"2030-01-10"}
+```
 
 ```json
-{
-  "projects": [
-    {
-      "id": 2,
-      "name": "Care Dashboard",
-      "client": "Medline",
-      "color": "#7c64e3",
-      "progress": 42,
-      "due_date": "2026-08-02"
-    },
-    {
-      "id": 3,
-      "name": "Merchant Portal",
-      "client": "Vektor",
-      "color": "#32a875",
-      "progress": 84,
-      "due_date": "2026-07-11"
-    },
-    {
-      "id": 1,
-      "name": "Nova Mobile",
-      "client": "Nova Bank",
-      "color": "#ff6b3d",
-      "progress": 68,
-      "due_date": "2026-07-18"
-    }
-  ],
-  "members": [
-    {
-      "id": 1,
-      "name": "Анна Морозова",
-      "role": "Product designer",
-      "initials": "АМ",
-      "color": "#ff8f66"
-    },
-    {
-      "id": 2,
-      "name": "Илья Власов",
-      "role": "Frontend developer",
-      "initials": "ИВ",
-      "color": "#b9a7ff"
-    },
-    {
-      "id": 3,
-      "name": "Марк Левин",
-      "role": "Backend developer",
-      "initials": "МЛ",
-      "color": "#8ed8b5"
-    },
-    {
-      "id": 4,
-      "name": "Саша Ким",
-      "role": "Product manager",
-      "initials": "СК",
-      "color": "#f4ca64"
-    }
-  ]
-}
+{"id":9,"title":"Подготовить макет","description":"Проверить мобильную версию","status":"todo","priority":"medium","projectId":1,"assigneeId":null,"dueDate":"2030-01-10"}
 ```
+
+Ответ 201; id зависит от базы. Для редактирования передайте полный объект по PATCH /api/tasks/9. Для смены статуса: PATCH /api/tasks/9/status с {"status":"done"}. GET /api/dashboard покажет новый процент и фактическое событие.

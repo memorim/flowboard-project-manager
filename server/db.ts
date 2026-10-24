@@ -59,7 +59,17 @@ export function createDatabase(filename = resolve('data', 'flowboard.db')) {
     );
   `);
   const count = db.prepare('SELECT COUNT(*) AS count FROM members').get() as { count: number };
-  if (count.count === 0) db.exec(seedSql);
+  if (count.count === 0) {
+    db.exec(seedSql);
+    for (const table of ['projects', 'tasks']) {
+      for (const row of db.prepare(`SELECT id,due_date FROM ${table}`).all() as {id:number;due_date:string}[]) {
+        const due = new Date(Date.now() + (new Date(row.due_date).getTime() - new Date('2026-07-04').getTime())).toISOString().slice(0,10);
+        db.prepare(`UPDATE ${table} SET due_date=? WHERE id=?`).run(due,row.id);
+      }
+    }
+    db.exec('DELETE FROM activity');
+    db.prepare('INSERT INTO activity(text,member_id,created_at) VALUES (?,?,?)').run('подготовил(а) демонстрационное рабочее пространство',4,new Date().toISOString());
+  }
   return db;
 }
 

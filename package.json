@@ -11,7 +11,8 @@
     "start": "tsx server/index.ts",
     "test": "node --test --import tsx tests/api.test.ts tests/demo.test.mjs",
     "typecheck": "tsc -b --pretty false",
-    "build:demo": "tsc -b && vite build --mode demo"
+    "build:demo": "tsc -b && vite build --mode demo",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -22,15 +23,16 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",
+    "@types/supertest": "^6.0.2",
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.2",
     "supertest": "^7.0.0",
-    "@types/supertest": "^6.0.2",
     "tsx": "^4.19.2",
     "typescript": "~5.7.2",
     "vite": "^6.0.7"

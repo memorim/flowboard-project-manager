@@ -46,3 +46,16 @@ describe('task validation', () => {
     assert.equal((await request(app).delete('/api/tasks/999')).status,404);
   });
 });
+
+ it('edits all task fields, recomputes progress and records actual mutations', async () => {
+   const body={title:'Edited task',description:'New details',status:'done',priority:'high',projectId:2,assigneeId:null,dueDate:'2035-01-10'};
+   const created=await request(app).post('/api/tasks').send({...body,status:'todo'});
+   const id=created.body.id;
+   assert.equal((await request(app).patch(`/api/tasks/${id}`).send(body)).status,200);
+   const dash=(await request(app).get('/api/dashboard')).body;
+   const p=dash.projects.find((p:{id:number})=>p.id===2);
+   assert.equal(p.progress,Math.round(p.done_count/p.task_count*100));
+   assert.ok(dash.activity.some((a:{text:string})=>a.text.includes('отредактировал')&&a.text.includes('Edited task')));
+   assert.equal((await request(app).patch(`/api/tasks/${id}`).send({...body,projectId:999})).status,404);
+   assert.equal((await request(app).patch(`/api/tasks/${id}`).send({...body,role:'admin'})).status,400);
+ });

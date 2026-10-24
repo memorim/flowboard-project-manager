@@ -4,34 +4,32 @@ import { z } from 'zod';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createDatabase, type Db } from './db.js';
-
-const taskSchema = z.object({
-  title: z.string().trim().min(3).max(120),
-  description: z.string().trim().max(500).default(''),
-  status: z.enum(['todo', 'in_progress', 'review', 'done']).default('todo'),
-  priority: z.enum(['low', 'medium', 'high']),
-  projectId: z.number().int().positive(),
-  assigneeId: z.number().int().positive().nullable(),
-  dueDate: z.string().date(),
-});
+import { taskSchema } from '../src/task-schema.js';
 
 export function createApp(db: Db = createDatabase()): Express {
   const app = express();
   app.use(cors());
   app.use(express.json());
+  const actor = (req: express.Request) => {
+    const id = Number(req.get('X-Demo-Actor') || 4);
+    return db.prepare('SELECT * FROM members WHERE id=?').get(id) as { id: number; name: string; role: string; initials: string; color: string } | undefined;
+  };
+  const record = (req: express.Request, text: string) => db.prepare('INSERT INTO activity(text,member_id,created_at) VALUES (?,?,?)').run(text, actor(req)?.id || 4, new Date().toISOString());
+  app.get('/api/session', (req, res) => res.json({ mode: 'local', user: actor(req) || null }));
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
   app.get('/api/dashboard', (_req, res) => {
     const stats = db.prepare(`
       SELECT COUNT(*) total,
-        SUM(status = 'done') done,
-        SUM(status = 'in_progress') inProgress,
-        SUM(status = 'review') review
+        COALESCE(SUM(status = 'done'),0) done,
+        COALESCE(SUM(status = 'in_progress'),0) inProgress,
+        COALESCE(SUM(status = 'review'),0) review
       FROM tasks
     `).get();
     const projects = db.prepare(`
-      SELECT p.*, COUNT(t.id) task_count, SUM(t.status = 'done') done_count
+      SELECT p.id,p.name,p.client,p.color,p.due_date,COUNT(t.id) task_count,COALESCE(SUM(t.status = 'done'),0) done_count,
+      CASE WHEN COUNT(t.id)=0 THEN 0 ELSE ROUND(100.0*SUM(t.status='done')/COUNT(t.id)) END progress
       FROM projects p LEFT JOIN tasks t ON t.project_id = p.id GROUP BY p.id ORDER BY p.due_date
     `).all();
     const activity = db.prepare(`
@@ -82,20 +80,35 @@ export function createApp(db: Db = createDatabase()): Express {
       $priority: task.priority, $projectId: task.projectId,
       $assigneeId: task.assigneeId, $dueDate: task.dueDate,
     });
+    record(req, `создал(а) задачу «${task.title}»`);
     res.status(201).json({ id: Number(result.lastInsertRowid), ...task });
   });
 
   app.patch('/api/tasks/:id/status', (req, res) => {
     const parsed = z.object({ status: z.enum(['todo', 'in_progress', 'review', 'done']) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: 'Недопустимый статус' });
+    const old = db.prepare('SELECT title,status FROM tasks WHERE id=?').get(Number(req.params.id)) as { title: string; status: string } | undefined;
+    if (!old) return res.status(404).json({ message: 'Задача не найдена' });
     const result = db.prepare('UPDATE tasks SET status = ? WHERE id = ?').run(parsed.data.status, Number(req.params.id));
     if (!result.changes) return res.status(404).json({ message: 'Задача не найдена' });
+    if (old.status !== parsed.data.status) record(req, `изменил(а) статус «${old.title}» на ${parsed.data.status}`);
     res.json({ id: Number(req.params.id), status: parsed.data.status });
+  });
+  app.patch('/api/tasks/:id', (req, res) => {
+    const parsed = taskSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: 'Проверьте данные задачи' });
+    const t = parsed.data;
+    if (!db.prepare('SELECT id FROM projects WHERE id=?').get(t.projectId) || (t.assigneeId !== null && !db.prepare('SELECT id FROM members WHERE id=?').get(t.assigneeId))) return res.status(404).json({ message: 'Проект или исполнитель не найден' });
+    const result = db.prepare('UPDATE tasks SET title=?,description=?,status=?,priority=?,project_id=?,assignee_id=?,due_date=? WHERE id=?').run(t.title,t.description,t.status,t.priority,t.projectId,t.assigneeId,t.dueDate,Number(req.params.id));
+    if (!result.changes) return res.status(404).json({ message: 'Задача не найдена' });
+    record(req, `отредактировал(а) задачу «${t.title}»`); res.json({ id: Number(req.params.id), ...t });
   });
 
   app.delete('/api/tasks/:id', (req, res) => {
+    const old = db.prepare('SELECT title FROM tasks WHERE id=?').get(Number(req.params.id)) as { title: string } | undefined;
     const result = db.prepare('DELETE FROM tasks WHERE id = ?').run(Number(req.params.id));
     if (!result.changes) return res.status(404).json({ message: 'Задача не найдена' });
+    record(req, `удалил(а) задачу «${old?.title}»`);
     res.status(204).end();
   });
 

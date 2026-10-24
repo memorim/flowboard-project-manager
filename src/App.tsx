@@ -1,146 +1,61 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowRight, Bell, CalendarDays, Check, ChevronDown, CirclePlus, Clock3,
-  LayoutDashboard, ListFilter, MoreHorizontal, PanelLeftClose, Search, Settings,
-  Sparkles, Users, X,
-} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight, CalendarDays, Check, CirclePlus, Clock3, LayoutDashboard, ListFilter, MoreHorizontal, PanelLeftClose, Search, Sparkles, Users, X } from 'lucide-react';
 import { api } from './api';
 import type { Dashboard, Member, Priority, Project, Status, Task } from './types';
-
-const statusLabels: Record<Status, string> = { todo: 'Нужно сделать', in_progress: 'В работе', review: 'На проверке', done: 'Готово' };
-const priorityLabels: Record<Priority, string> = { low: 'Низкий', medium: 'Средний', high: 'Высокий' };
-const columns: Status[] = ['todo', 'in_progress', 'review', 'done'];
-
-const shortDate = (value: string) => new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(new Date(value));
-const timeAgo = (value: string) => {
-  const hours = Math.max(1, Math.round((Date.now() - new Date(value).getTime()) / 3_600_000));
-  return hours < 24 ? `${hours} ч назад` : `${Math.round(hours / 24)} дн назад`;
-};
-
-function TaskCard({ task, onMove, onDelete }: { task: Task; onMove: (id: number, status: Status) => void; onDelete: (id: number) => void }) {
-  const [menu, setMenu] = useState(false);
-  const next = columns[Math.min(columns.indexOf(task.status) + 1, columns.length - 1)];
-  return (
-    <article className="task-card">
-      <div className="task-top">
-        <span className={`priority priority-${task.priority}`}>{priorityLabels[task.priority]}</span>
-        <button className="icon-button mini" onClick={() => setMenu(!menu)} aria-label="Действия"><MoreHorizontal size={18} /></button>
-        {menu && <div className="card-menu">
-          {next !== task.status && <button onClick={() => { onMove(task.id, next); setMenu(false); }}>Переместить дальше</button>}
-          <button className="danger" onClick={() => onDelete(task.id)}>Удалить</button>
-        </div>}
-      </div>
-      <h4>{task.title}</h4>
-      <p>{task.description}</p>
-      <div className="project-chip"><i style={{ background: task.project_color }} />{task.project_name}</div>
-      <footer>
-        <span className="due"><CalendarDays size={14} />{shortDate(task.due_date)}</span>
-        {task.initials && <span className="avatar small" title={task.assignee_name || ''} style={{ background: task.assignee_color || '#ddd' }}>{task.initials}</span>}
-      </footer>
-    </article>
-  );
+const statusLabels: Record<Status,string> = {todo:'Нужно сделать',in_progress:'В работе',review:'На проверке',done:'Готово'};
+const priorityLabels: Record<Priority,string> = {low:'Низкий',medium:'Средний',high:'Высокий'};
+const columns = Object.keys(statusLabels) as Status[];
+const shortDate = (v:string) => new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short'}).format(new Date(v+'T12:00:00'));
+const errorMessage = (e:unknown) => e instanceof Error ? e.message : 'Не удалось выполнить запрос';
+function TaskCard({task,onMove,onDelete,onEdit,writable,busy}:{task:Task;onMove:(id:number,status:Status)=>void;onDelete:(id:number)=>void;onEdit:()=>void;writable:boolean;busy:boolean}) {
+  const [menu,setMenu]=useState(false);
+  return <article className="task-card" draggable={writable&&!busy} onDragStart={e=>e.dataTransfer.setData('text/plain',String(task.id))}>
+    <div className="task-top"><span className={`priority priority-${task.priority}`}>{priorityLabels[task.priority]}</span><button className="icon-button mini" onClick={()=>setMenu(v=>!v)} aria-label={`Действия: ${task.title}`} aria-expanded={menu}><MoreHorizontal size={18}/></button>{menu&&<div className="card-menu"><button disabled={!writable||busy} onClick={()=>{setMenu(false);onEdit();}}>Редактировать</button><button disabled={!writable||busy} className="danger" onClick={()=>{if(window.confirm(`Удалить демонстрационную задачу «${task.title}»?`))onDelete(task.id);}}>Удалить</button></div>}</div>
+    <h4>{task.title}</h4><p>{task.description}</p><div className="project-chip"><i style={{background:task.project_color}}/>{task.project_name}</div>
+    <label className="task-status">Статус<select aria-label={`Статус: ${task.title}`} value={task.status} disabled={!writable||busy} onChange={e=>onMove(task.id,e.target.value as Status)}>{columns.map(s=><option key={s} value={s}>{statusLabels[s]}</option>)}</select></label>
+    <footer><span className="due"><CalendarDays size={14}/>{shortDate(task.due_date)}</span>{task.initials&&<span className="avatar small" title={task.assignee_name||''} style={{background:task.assignee_color||'#ddd'}}>{task.initials}</span>}</footer>
+  </article>;
 }
-
-function NewTaskModal({ projects, members, onClose, onCreated }: { projects: Project[]; members: Member[]; onClose: () => void; onCreated: () => void }) {
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); setSaving(true); setError('');
-    const data = new FormData(event.currentTarget);
-    try {
-      await api.createTask({
-        title: data.get('title'), description: data.get('description'), status: 'todo', priority: data.get('priority'),
-        projectId: Number(data.get('projectId')), assigneeId: Number(data.get('assigneeId')), dueDate: data.get('dueDate'),
-      });
-      onCreated();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Не удалось создать задачу'); setSaving(false); }
-  };
-  return <div className="modal-backdrop" onMouseDown={(e) => e.currentTarget === e.target && onClose()}>
-    <div className="modal">
-      <div className="modal-head"><div><span className="eyebrow">Новая задача</span><h2>Что нужно сделать?</h2></div><button className="icon-button" onClick={onClose}><X /></button></div>
-      <form onSubmit={submit}>
-        <label>Название<input name="title" required minLength={3} autoFocus placeholder="Например, обновить страницу оплаты" /></label>
-        <label>Описание<textarea name="description" rows={3} placeholder="Короткий контекст для команды" /></label>
-        <div className="form-grid">
-          <label>Проект<select name="projectId">{projects.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}</select></label>
-          <label>Исполнитель<select name="assigneeId">{members.map(m => <option value={m.id} key={m.id}>{m.name}</option>)}</select></label>
-          <label>Приоритет<select name="priority"><option value="medium">Средний</option><option value="high">Высокий</option><option value="low">Низкий</option></select></label>
-          <label>Срок<input name="dueDate" type="date" required defaultValue="2026-07-20" /></label>
-        </div>
-        {error && <p className="form-error">{error}</p>}
-        <div className="modal-actions"><button type="button" className="button ghost" onClick={onClose}>Отмена</button><button className="button primary" disabled={saving}>{saving ? 'Сохраняю…' : 'Создать задачу'}</button></div>
-      </form>
-    </div>
-  </div>;
+function TaskModal({task,projects,members,onClose,onSave}:{task?:Task;projects:Project[];members:Member[];onClose:()=>void;onSave:(body:object)=>Promise<void>}) {
+  const ref=useRef<HTMLDialogElement>(null);const [saving,setSaving]=useState(false),[error,setError]=useState('');
+  useEffect(()=>{ref.current?.showModal();},[]);
+  return <dialog ref={ref} className="modal task-dialog" onCancel={onClose} aria-labelledby="task-modal-title"><div className="modal-head"><div><span className="eyebrow">{task?'Редактирование':'Новая задача'}</span><h2 id="task-modal-title">{task?'Изменить задачу':'Что нужно сделать?'}</h2></div><button className="icon-button" onClick={onClose} aria-label="Закрыть редактор"><X/></button></div>
+    <form onSubmit={async e=>{e.preventDefault();setSaving(true);setError('');const d=new FormData(e.currentTarget);try{await onSave({title:d.get('title'),description:d.get('description'),status:d.get('status'),priority:d.get('priority'),projectId:Number(d.get('projectId')),assigneeId:d.get('assigneeId')?Number(d.get('assigneeId')):null,dueDate:d.get('dueDate')});onClose();}catch(e){setError(errorMessage(e));}finally{setSaving(false);}}}>
+      <label>Название<input name="title" required minLength={3} maxLength={120} autoFocus defaultValue={task?.title}/></label><label>Описание<textarea name="description" rows={3} maxLength={500} defaultValue={task?.description}/></label>
+      <div className="form-grid"><label>Проект<select name="projectId" defaultValue={task?.project_id}>{projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label><label>Исполнитель<select name="assigneeId" defaultValue={task?.assignee_id??''}><option value="">Не назначен</option>{members.map(m=><option value={m.id} key={m.id}>{m.name}</option>)}</select></label><label>Приоритет<select name="priority" defaultValue={task?.priority||'medium'}>{Object.entries(priorityLabels).map(([k,v])=><option value={k} key={k}>{v}</option>)}</select></label><label>Срок<input name="dueDate" type="date" required defaultValue={task?.due_date||new Date(Date.now()+7*86400000).toISOString().slice(0,10)}/></label><label>Состояние<select name="status" defaultValue={task?.status||'todo'}>{columns.map(s=><option value={s} key={s}>{statusLabels[s]}</option>)}</select></label></div>
+      {error&&<p role="alert" className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="button ghost" onClick={onClose}>Отмена</button><button className="button primary" disabled={saving}>{saving?'Сохраняю…':task?'Сохранить изменения':'Создать задачу'}</button></div>
+    </form></dialog>;
 }
-
-export default function App() {
-  const [view, setView] = useState<'overview' | 'board'>('overview');
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [query, setQuery] = useState('');
-  const [modal, setModal] = useState(false);
-  const [sidebar, setSidebar] = useState(() => window.innerWidth > 760);
-  const [loading, setLoading] = useState(true);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [dash, taskList, meta] = await Promise.all([api.dashboard(), api.tasks(), api.meta()]);
-      setDashboard(dash); setTasks(taskList); setProjects(meta.projects); setMembers(meta.members);
-    } finally { setLoading(false); }
-  };
-  useEffect(() => { void load(); }, []);
-
-  const visibleTasks = useMemo(() => {
-    const value = query.toLowerCase().trim();
-    return value ? tasks.filter(t => `${t.title} ${t.description} ${t.project_name}`.toLowerCase().includes(value)) : tasks;
-  }, [tasks, query]);
-  const setStatus = async (id: number, status: Status) => { await api.setStatus(id, status); setTasks(v => v.map(t => t.id === id ? { ...t, status } : t)); };
-  const removeTask = async (id: number) => { await api.deleteTask(id); setTasks(v => v.filter(t => t.id !== id)); };
-
-  return <div className={`app-shell ${sidebar ? '' : 'sidebar-hidden'}`}>
-    <aside className="sidebar">
-      <a className="brand"><span>F</span>flowboard</a>
-      <nav className="main-nav">
-        <button className={view === 'overview' ? 'active' : ''} onClick={() => setView('overview')}><LayoutDashboard />Обзор</button>
-        <button className={view === 'board' ? 'active' : ''} onClick={() => setView('board')}><Sparkles />Мои задачи<span className="nav-count">4</span></button>
-        <button><Users />Команда</button>
-        <button><CalendarDays />Календарь</button>
-      </nav>
-      <div className="sidebar-section"><p>Проекты <CirclePlus size={15} /></p>{projects.map(project => <button key={project.id} onClick={() => { setView('board'); setQuery(project.name); }}><i style={{ background: project.color }} />{project.name}</button>)}</div>
-      <div className="sidebar-bottom"><button><Settings />Настройки</button><div className="profile"><span className="avatar">РС</span><div><strong>Роман С.</strong><small>Workspace owner</small></div><ChevronDown size={16} /></div></div>
-    </aside>
-
-    <main>
-      <header className="topbar">
-        <button className="icon-button sidebar-toggle" onClick={() => setSidebar(v => !v)}><PanelLeftClose /></button>
-        <div className="search"><Search /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Найти задачу или проект…" /><kbd>⌘ K</kbd></div>
-        <button className="icon-button notify"><Bell /><i /></button>
-        <button className="button primary" onClick={() => setModal(true)}><CirclePlus />Новая задача</button>
-      </header>
-
-      {loading ? <div className="loader"><span /><p>Собираем рабочее пространство</p></div> : view === 'overview' && dashboard ? <div className="page overview">
-        <section className="page-title"><div><span className="eyebrow">Суббота, 4 июля</span><h1>Доброе утро, Роман.</h1><p>Вот что происходит в проектах сегодня.</p></div><div className="team-stack">{members.map(m => <span className="avatar" key={m.id} style={{ background: m.color }}>{m.initials}</span>)}<button>+2</button></div></section>
-        <section className="metrics">
-          <article><div className="metric-icon coral"><ListFilter /></div><div><span>Все задачи</span><strong>{dashboard.stats.total}</strong><small>в 3 активных проектах</small></div></article>
-          <article><div className="metric-icon purple"><Clock3 /></div><div><span>В работе</span><strong>{dashboard.stats.inProgress}</strong><small>на этой неделе</small></div></article>
-          <article><div className="metric-icon green"><Check /></div><div><span>Завершено</span><strong>{dashboard.stats.done}</strong><small className="positive">↑ 18% за месяц</small></div></article>
-          <article><div className="metric-icon yellow"><Users /></div><div><span>На проверке</span><strong>{dashboard.stats.review}</strong><small>ожидают ответа</small></div></article>
-        </section>
-        <section className="overview-grid">
-          <div className="panel projects-panel"><div className="panel-head"><div><span className="eyebrow">В фокусе</span><h2>Активные проекты</h2></div><button onClick={() => setView('board')}>Все задачи <ArrowRight /></button></div>
-            <div className="project-list">{dashboard.projects.map(project => <article key={project.id}><div className="project-logo" style={{ background: project.color }}>{project.name.slice(0, 1)}</div><div className="project-info"><strong>{project.name}</strong><span>{project.client}</span><div className="progress"><i style={{ width: `${project.progress}%`, background: project.color }} /></div></div><div className="project-stat"><strong>{project.progress}%</strong><span>{project.done_count || 0}/{project.task_count} задач</span></div><span className="project-date"><CalendarDays />{shortDate(project.due_date)}</span></article>)}</div>
-          </div>
-          <div className="panel activity-panel"><div className="panel-head"><div><span className="eyebrow">В реальном времени</span><h2>Активность</h2></div><button className="icon-button"><MoreHorizontal /></button></div><div className="activity-list">{dashboard.activity.map(item => <article key={item.id}><span className="avatar small" style={{ background: item.color }}>{item.initials}</span><p><strong>{item.name}</strong> {item.text}<time>{timeAgo(item.created_at)}</time></p></article>)}</div></div>
-        </section>
-      </div> : <div className="page board-page">
-        <section className="page-title board-title"><div><span className="eyebrow">Рабочий процесс</span><h1>Доска задач</h1><p>{visibleTasks.length} задач · синхронизация включена</p></div><button className="button ghost"><ListFilter />Фильтры</button></section>
-        <div className="board">{columns.map(status => <section className="board-column" key={status}><header><span className={`status-dot ${status}`} /><strong>{statusLabels[status]}</strong><b>{visibleTasks.filter(t => t.status === status).length}</b><MoreHorizontal /></header><div className="column-content">{visibleTasks.filter(t => t.status === status).map(task => <TaskCard key={task.id} task={task} onMove={setStatus} onDelete={removeTask} />)}<button className="add-inline" onClick={() => setModal(true)}><CirclePlus />Добавить задачу</button></div></section>)}</div>
+export default function App(){
+  const [view,setView]=useState<'overview'|'board'|'team'|'calendar'>('overview');
+  const [dashboard,setDashboard]=useState<Dashboard|null>(null),[tasks,setTasks]=useState<Task[]>([]),[projects,setProjects]=useState<Project[]>([]),[members,setMembers]=useState<Member[]>([]);
+  const [query,setQuery]=useState(''),[project,setProject]=useState(''),[assignee,setAssignee]=useState(''),[statusFilter,setStatusFilter]=useState('');
+  const [editor,setEditor]=useState<Task|null|undefined>(undefined),[sidebar,setSidebar]=useState(false),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const [session,setSession]=useState<{mode:string;user:Member|null}>({mode:'local',user:null});
+  const load=async()=>{setLoading(true);setError('');try{const [dash,list,meta,user]=await Promise.all([api.dashboard(),api.tasks(),api.meta(),api.session()]);setDashboard(dash);setTasks(list);setProjects(meta.projects);setMembers(meta.members);setSession(user);}catch(e){setError(errorMessage(e));}finally{setLoading(false);}};
+  useEffect(()=>{setSidebar(window.innerWidth>760);void load();},[]);
+  const writable=!error&&(session.mode!=='chatgpt'||!!session.user);
+  const go=(v:typeof view)=>{setView(v);if(window.innerWidth<=760)setSidebar(false);};
+  const visible=useMemo(()=>tasks.filter(t=>(!project||t.project_id===Number(project))&&(!assignee||(assignee==='none'?t.assignee_id===null:t.assignee_id===Number(assignee)))&&(!statusFilter||t.status===statusFilter)&&`${t.title} ${t.description} ${t.project_name}`.toLowerCase().includes(query.toLowerCase().trim())),[tasks,project,assignee,statusFilter,query]);
+  const mutate=async(action:()=>Promise<unknown>)=>{setBusy(true);setError('');try{await action();await load();}catch(e){setError(errorMessage(e));}finally{setBusy(false);}};
+  const move=(id:number,status:Status)=>void mutate(()=>api.setStatus(id,status));
+  const remove=(id:number)=>void mutate(()=>api.deleteTask(id));
+  const reset=()=>{setQuery('');setProject('');setAssignee('');setStatusFilter('');};
+  return <div className={`app-shell ${sidebar?'':'sidebar-hidden'}`}><aside className="sidebar" aria-hidden={!sidebar} inert={!sidebar}><button className="brand" onClick={()=>{reset();go('overview');}}><span>F</span>flowboard</button>
+    <nav className="main-nav"><button className={view==='overview'?'active':''} onClick={()=>go('overview')}><LayoutDashboard/>Обзор</button><button className={view==='board'?'active':''} onClick={()=>go('board')}><Sparkles/>Задачи<span className="nav-count">{tasks.length}</span></button><button className={view==='team'?'active':''} onClick={()=>go('team')}><Users/>Команда</button><button className={view==='calendar'?'active':''} onClick={()=>go('calendar')}><CalendarDays/>Календарь</button></nav>
+    <div className="sidebar-section"><p>Проекты</p>{projects.map(p=><button key={p.id} onClick={()=>{setProject(String(p.id));go('board');}}><i style={{background:p.color}}/>{p.name}</button>)}</div>
+    <div className="sidebar-bottom">{session.mode==='chatgpt'?<p>{session.user?.name||'Гостевой просмотр'}<br/><a href={session.user?'/signout-with-chatgpt?return_to=/':'/signin-with-chatgpt?return_to=/'} target="_top">{session.user?'Выйти':'Войти через ChatGPT'}</a></p>:<label className="actor-select">Демо-участник<select aria-label="Демонстрационный участник" value={session.user?.id||4} onChange={e=>{localStorage.setItem('flowboard-actor',e.target.value);void load();}}>{members.map(m=><option value={m.id} key={m.id}>{m.name}</option>)}</select></label>}<p className="workspace-note">{session.mode==='chatgpt'?'Общая серверная демо-база':'Демонстрационное рабочее пространство'}</p></div>
+    </aside><main><header className="topbar"><button className="icon-button sidebar-toggle" onClick={()=>setSidebar(v=>!v)} aria-label="Переключить меню" aria-expanded={sidebar}><PanelLeftClose/></button><div className="search"><Search/><input aria-label="Поиск задач" value={query} onChange={e=>{setQuery(e.target.value);if(e.target.value)go('board');}} placeholder="Найти задачу или проект…"/></div>{session.mode==='chatgpt'&&!session.user?<a className="button primary" href="/signin-with-chatgpt?return_to=/" target="_top">Войти для изменений</a>:<button className="button primary" disabled={loading||!writable} onClick={()=>setEditor(null)}><CirclePlus/>Новая задача</button>}</header>
+      {error&&<div className="page-error" role="alert">{error} <button onClick={()=>void load()}>Повторить загрузку</button></div>}
+      {loading?<div className="loader" role="status"><span/><p>Собираем рабочее пространство</p></div>:view==='overview'&&dashboard?<div className="page overview"><section className="page-title"><div><span className="eyebrow">{new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})}</span><h1>Рабочее пространство команды</h1><p>Задачи, сроки и последние изменения.</p></div><div className="team-stack">{members.slice(0,5).map(m=><span className="avatar" key={m.id} title={m.name} style={{background:m.color}}>{m.initials}</span>)}</div></section>
+        <section className="metrics">{[{label:'Все задачи',value:dashboard.stats.total,icon:<ListFilter/>,color:'coral'},{label:'В работе',value:dashboard.stats.inProgress,icon:<Clock3/>,color:'purple'},{label:'Завершено',value:dashboard.stats.done,icon:<Check/>,color:'green'},{label:'На проверке',value:dashboard.stats.review,icon:<Users/>,color:'yellow'}].map(m=><article key={m.label}><div className={`metric-icon ${m.color}`}>{m.icon}</div><div><span>{m.label}</span><strong>{m.value}</strong><small>по текущему списку задач</small></div></article>)}</section>
+        <section className="overview-grid"><div className="panel projects-panel"><div className="panel-head"><div><span className="eyebrow">В фокусе</span><h2>Активные проекты</h2></div><button onClick={()=>{reset();go('board');}}>Все задачи <ArrowRight/></button></div><div className="project-list">{dashboard.projects.map(p=><article key={p.id}><div className="project-logo" style={{background:p.color}}>{p.name.slice(0,1)}</div><div className="project-info"><button className="project-open" onClick={()=>{setProject(String(p.id));go('board');}}>{p.name}</button><span>{p.client}</span><div className="progress"><i style={{width:`${p.progress}%`,background:p.color}}/></div></div><div className="project-stat"><strong>{p.progress}%</strong><span>{p.done_count||0}/{p.task_count} задач</span></div><span className="project-date"><CalendarDays/>{shortDate(p.due_date)}</span></article>)}</div></div>
+        <div className="panel activity-panel"><div className="panel-head"><div><span className="eyebrow">Журнал изменений</span><h2>Активность</h2></div></div><div className="activity-list">{!dashboard.activity.length&&<p>Новых действий пока нет. Создайте или измените задачу.</p>}{dashboard.activity.map(a=><article key={a.id}><span className="avatar small" style={{background:a.color}}>{a.initials}</span><p><strong>{a.name}</strong> {a.text}<time>{new Date(a.created_at).toLocaleString('ru-RU')}</time></p></article>)}</div></div></section>
+      </div>:view==='team'?<div className="page"><section className="page-title"><div><span className="eyebrow">Участники</span><h1>Команда</h1><p>Демонстрационные профили и распределение задач.</p></div></section><div className="team-grid">{members.map(m=><article className="panel" key={m.id}><span className="avatar" style={{background:m.color}}>{m.initials}</span><h2>{m.name}</h2><p>{m.role}</p><p>{tasks.filter(t=>t.assignee_id===m.id).length} задач</p><button className="button ghost" onClick={()=>{setAssignee(String(m.id));go('board');}}>Посмотреть задачи</button></article>)}</div></div>:<div className="page board-page"><section className="page-title board-title"><div><span className="eyebrow">Рабочий процесс</span><h1>{view==='calendar'?'Календарь сроков':'Доска задач'}</h1><p>{visible.length} задач · {session.mode==='chatgpt'?'данные общей базы; обновление после действий':'демонстрационный режим'}</p></div></section>
+        <div className="task-filters"><label>Проект<select value={project} onChange={e=>setProject(e.target.value)}><option value="">Все проекты</option>{projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select></label><label>Исполнитель<select value={assignee} onChange={e=>setAssignee(e.target.value)}><option value="">Все участники</option><option value="none">Не назначен</option>{members.map(m=><option value={m.id} key={m.id}>{m.name}</option>)}</select></label><label>Статус<select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="">Все статусы</option>{columns.map(s=><option value={s} key={s}>{statusLabels[s]}</option>)}</select></label><button className="button ghost" onClick={reset}>Сбросить фильтры</button></div>
+        {!visible.length&&<p role="status">Задач по выбранным условиям нет.</p>}
+        {view==='calendar'?<div className="calendar-list">{Array.from(new Set(visible.map(t=>t.due_date))).sort().map(date=><section className="panel" key={date}><h2>{shortDate(date)}</h2>{visible.filter(t=>t.due_date===date).map(t=><p key={t.id}><strong>{t.title}</strong> · {t.project_name} · {statusLabels[t.status]}</p>)}</section>)}</div>:<div className="board">{columns.map(status=><section className="board-column" key={status} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const id=Number(e.dataTransfer.getData('text/plain'));if(writable&&tasks.some(t=>t.id===id))move(id,status);}}><header><span className={`status-dot ${status}`}/><strong>{statusLabels[status]}</strong><b>{visible.filter(t=>t.status===status).length}</b></header><div className="column-content">{visible.filter(t=>t.status===status).map(t=><TaskCard key={t.id} task={t} onMove={move} onDelete={remove} onEdit={()=>setEditor(t)} writable={writable} busy={busy}/>)}{writable&&<button className="add-inline" onClick={()=>setEditor(null)}><CirclePlus/>Добавить задачу</button>}</div></section>)}</div>}
       </div>}
-    </main>
-    {modal && <NewTaskModal projects={projects} members={members} onClose={() => setModal(false)} onCreated={() => { setModal(false); void load(); setView('board'); }} />}
+    </main>{editor!==undefined&&<TaskModal task={editor||undefined} projects={projects} members={members} onClose={()=>setEditor(undefined)} onSave={async body=>{if(editor)await api.updateTask(editor.id,body);else await api.createTask(body);await load();go('board');}}/>}
   </div>;
 }

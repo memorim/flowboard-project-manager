@@ -1,0 +1,5 @@
+import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core';
+export const members = sqliteTable('members',{id:integer('id').primaryKey({autoIncrement:true}),name:text('name').notNull(),role:text('role').notNull(),initials:text('initials').notNull(),color:text('color').notNull(),siteKey:text('site_key').unique()});
+export const projects = sqliteTable('projects',{id:integer('id').primaryKey(),name:text('name').notNull(),client:text('client').notNull(),color:text('color').notNull(),dueDate:text('due_date').notNull()});
+export const tasks = sqliteTable('tasks',{id:integer('id').primaryKey({autoIncrement:true}),title:text('title').notNull(),description:text('description').notNull(),status:text('status').notNull(),priority:text('priority').notNull(),projectId:integer('project_id').notNull().references(()=>projects.id),assigneeId:integer('assignee_id').references(()=>members.id),dueDate:text('due_date').notNull()});
+export const activity = sqliteTable('activity',{id:integer('id').primaryKey({autoIncrement:true}),text:text('text').notNull(),memberId:integer('member_id').notNull().references(()=>members.id),createdAt:text('created_at').notNull()});

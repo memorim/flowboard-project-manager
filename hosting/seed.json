@@ -1,0 +1,224 @@
+{
+  "tasks": [
+    {
+      "id": 6,
+      "title": "Настроить роли сотрудников",
+      "description": "Владелец, администратор, кассир и наблюдатель",
+      "status": "done",
+      "priority": "high",
+      "project_id": 3,
+      "assignee_id": 4,
+      "due_date": "2026-07-02",
+      "project_name": "Merchant Portal",
+      "project_color": "#32a875",
+      "assignee_name": "Саша Ким",
+      "initials": "СК",
+      "assignee_color": "#f4ca64"
+    },
+    {
+      "id": 2,
+      "title": "Подключить биометрию",
+      "description": "Face ID и fallback на короткий код",
+      "status": "review",
+      "priority": "high",
+      "project_id": 1,
+      "assignee_id": 2,
+      "due_date": "2026-07-06",
+      "project_name": "Nova Mobile",
+      "project_color": "#ff6b3d",
+      "assignee_name": "Илья Власов",
+      "initials": "ИВ",
+      "assignee_color": "#b9a7ff"
+    },
+    {
+      "id": 1,
+      "title": "Собрать состояния онбординга",
+      "description": "Пустые, загрузочные и ошибочные состояния для первого запуска",
+      "status": "in_progress",
+      "priority": "high",
+      "project_id": 1,
+      "assignee_id": 1,
+      "due_date": "2026-07-07",
+      "project_name": "Nova Mobile",
+      "project_color": "#ff6b3d",
+      "assignee_name": "Анна Морозова",
+      "initials": "АМ",
+      "assignee_color": "#ff8f66"
+    },
+    {
+      "id": 8,
+      "title": "Сценарий возврата платежа",
+      "description": "Подтверждение и итоговый статус операции",
+      "status": "todo",
+      "priority": "high",
+      "project_id": 3,
+      "assignee_id": 2,
+      "due_date": "2026-07-10",
+      "project_name": "Merchant Portal",
+      "project_color": "#32a875",
+      "assignee_name": "Илья Власов",
+      "initials": "ИВ",
+      "assignee_color": "#b9a7ff"
+    },
+    {
+      "id": 7,
+      "title": "Обновить webhook-документацию",
+      "description": "Примеры payload и таблица кодов ошибок",
+      "status": "review",
+      "priority": "medium",
+      "project_id": 3,
+      "assignee_id": 3,
+      "due_date": "2026-07-08",
+      "project_name": "Merchant Portal",
+      "project_color": "#32a875",
+      "assignee_name": "Марк Левин",
+      "initials": "МЛ",
+      "assignee_color": "#8ed8b5"
+    },
+    {
+      "id": 3,
+      "title": "Оптимизировать ленту операций",
+      "description": "Виртуализация списка и серверная пагинация",
+      "status": "todo",
+      "priority": "medium",
+      "project_id": 1,
+      "assignee_id": 3,
+      "due_date": "2026-07-12",
+      "project_name": "Nova Mobile",
+      "project_color": "#ff6b3d",
+      "assignee_name": "Марк Левин",
+      "initials": "МЛ",
+      "assignee_color": "#8ed8b5"
+    },
+    {
+      "id": 4,
+      "title": "Экспорт отчёта в PDF",
+      "description": "Шаблон ежемесячной выгрузки для клиник",
+      "status": "in_progress",
+      "priority": "medium",
+      "project_id": 2,
+      "assignee_id": 3,
+      "due_date": "2026-07-16",
+      "project_name": "Care Dashboard",
+      "project_color": "#7c64e3",
+      "assignee_name": "Марк Левин",
+      "initials": "МЛ",
+      "assignee_color": "#8ed8b5"
+    },
+    {
+      "id": 5,
+      "title": "Проверить контрастность графиков",
+      "description": "WCAG AA для всех цветовых серий",
+      "status": "todo",
+      "priority": "low",
+      "project_id": 2,
+      "assignee_id": 1,
+      "due_date": "2026-07-20",
+      "project_name": "Care Dashboard",
+      "project_color": "#7c64e3",
+      "assignee_name": "Анна Морозова",
+      "initials": "АМ",
+      "assignee_color": "#ff8f66"
+    }
+  ],
+  "projects": [
+    {
+      "id": 3,
+      "name": "Merchant Portal",
+      "client": "Vektor",
+      "color": "#32a875",
+      "progress": 84,
+      "due_date": "2026-07-11",
+      "task_count": 3,
+      "done_count": 1
+    },
+    {
+      "id": 1,
+      "name": "Nova Mobile",
+      "client": "Nova Bank",
+      "color": "#ff6b3d",
+      "progress": 68,
+      "due_date": "2026-07-18",
+      "task_count": 3,
+      "done_count": 0
+    },
+    {
+      "id": 2,
+      "name": "Care Dashboard",
+      "client": "Medline",
+      "color": "#7c64e3",
+      "progress": 42,
+      "due_date": "2026-08-02",
+      "task_count": 2,
+      "done_count": 0
+    }
+  ],
+  "members": [
+    {
+      "id": 1,
+      "name": "Анна Морозова",
+      "role": "Product designer",
+      "initials": "АМ",
+      "color": "#ff8f66"
+    },
+    {
+      "id": 2,
+      "name": "Илья Власов",
+      "role": "Frontend developer",
+      "initials": "ИВ",
+      "color": "#b9a7ff"
+    },
+    {
+      "id": 3,
+      "name": "Марк Левин",
+      "role": "Backend developer",
+      "initials": "МЛ",
+      "color": "#8ed8b5"
+    },
+    {
+      "id": 4,
+      "name": "Саша Ким",
+      "role": "Product manager",
+      "initials": "СК",
+      "color": "#f4ca64"
+    }
+  ],
+  "activity": [
+    {
+      "id": 1,
+      "text": "переместила «Собрать состояния онбординга» в работу",
+      "member_id": 1,
+      "created_at": "2026-07-04T09:42:00",
+      "name": "Анна Морозова",
+      "initials": "АМ",
+      "color": "#ff8f66"
+    },
+    {
+      "id": 2,
+      "text": "отправил «Подключить биометрию» на проверку",
+      "member_id": 2,
+      "created_at": "2026-07-04T08:16:00",
+      "name": "Илья Власов",
+      "initials": "ИВ",
+      "color": "#b9a7ff"
+    },
+    {
+      "id": 3,
+      "text": "завершила настройку ролей сотрудников",
+      "member_id": 4,
+      "created_at": "2026-07-03T17:28:00",
+      "name": "Саша Ким",
+      "initials": "СК",
+      "color": "#f4ca64"
+    },
+    {
+      "id": 4,
+      "text": "добавил описание к экспорту отчёта",
+      "member_id": 3,
+      "created_at": "2026-07-03T15:03:00",
+      "name": "Марк Левин",
+      "initials": "МЛ",
+      "color": "#8ed8b5"
+    }
+  ]
+}
