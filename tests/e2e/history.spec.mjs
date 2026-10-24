@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from '../fixtures.mjs';
 async function nav(page,name){if(page.viewportSize().width<=760&&await page.getByRole('button',{name:'Переключить меню'}).getAttribute('aria-expanded')!=='true')await page.getByRole('button',{name:'Переключить меню'}).click();await page.getByRole('navigation').getByRole('button',{name:name==='Задачи'?/^Задачи/:name,exact:name!=='Задачи'}).click();}
 test('edit history, trash and restore retain the same task',async({page})=>{
  await page.goto('/');await page.getByRole('button',{name:'Новая задача',exact:true}).click();const title='Restore synthetic '+Date.now();let d=page.getByRole('dialog');await d.getByLabel('Название',{exact:true}).fill(title);await d.getByRole('button',{name:'Создать задачу',exact:true}).click();await expect(d).toHaveCount(0);await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();

@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from '../fixtures.mjs';
 test('keyboard focus, Escape and reflow at 320 and 640 CSS pixels',async({page})=>{
  await page.goto('/');
  for(const width of [320,640]){

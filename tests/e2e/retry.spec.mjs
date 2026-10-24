@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from '../fixtures.mjs';
 test('lost create response can be retried without a duplicate task',async({page})=>{
  await page.goto('/');await page.getByRole('button',{name:'Новая задача',exact:true}).click();const d=page.getByRole('dialog'),title='Lost response '+Date.now();await d.getByLabel('Название',{exact:true}).fill(title);
  const keys=[];let id;await page.route('**/api/tasks?*',async route=>{if(route.request().method()!=='POST')return route.continue();keys.push(route.request().headers()['idempotency-key']);if(keys.length===1){const r=await route.fetch();expect(r.status()).toBe(201);id=(await r.json()).id;await route.abort('failed');}else await route.continue();});

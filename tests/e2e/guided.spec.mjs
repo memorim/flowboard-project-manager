@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from '../fixtures.mjs';
 test('guided synthetic task completes create, status, trash, restore and history',async({page})=>{
  await page.goto('/');await page.getByRole('button',{name:'Пройти демонстрацию',exact:true}).click();const d=page.getByRole('dialog');
  for(const name of ['Создать учебную задачу','Отметить выполненной','Переместить в корзину','Восстановить учебную задачу']){await d.getByRole('button',{name,exact:true}).click();}

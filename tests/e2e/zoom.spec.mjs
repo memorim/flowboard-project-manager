@@ -1,4 +1,4 @@
-import {test,expect,chromium} from '@playwright/test';
+import {test,expect,chromium} from '../fixtures.mjs';
 import {fileURLToPath} from 'node:url';
 // A disposable Chromium profile uses the native tabs.setZoom API, not CSS zoom or device emulation.
 test('real 200% browser zoom keeps the primary form usable',async({baseURL},info)=>{

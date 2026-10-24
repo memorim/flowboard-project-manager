@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from '../fixtures.mjs';
 async function nav(page,name){const target=page.getByRole('navigation').getByRole('button',{name:name==='Задачи'?/^Задачи/:name,exact:name!=='Задачи'});if(page.viewportSize().width<=760 && await page.getByRole('button',{name:'Переключить меню'}).getAttribute('aria-expanded')!=='true')await page.getByRole('button',{name:'Переключить меню'}).click();await target.click();}
 test('create, edit, filter and move a task with persistence and a real activity log',async({page})=>{
  await page.goto('/');await expect(page.getByRole('heading',{name:'Рабочее пространство команды'})).toBeVisible();
