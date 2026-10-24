@@ -1,0 +1,5 @@
+{
+  "release": "v1.1.0",
+  "commit": "2c494f9c05e2f220ac16ca69bc923a63681c5591",
+  "module": "server/db.ts"
+}

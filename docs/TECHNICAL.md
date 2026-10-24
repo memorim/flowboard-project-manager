@@ -20,3 +20,6 @@ GET /api/meta, /api/tasks, /api/dashboard, /api/session; POST /api/tasks; PATCH 
 
 
 Командные endpoints: GET/POST /api/workspaces; POST /api/projects; POST /api/invitations {role}; POST /api/invitations/accept {token}; PATCH/DELETE /api/members/:id; GET /api/export. Выбранное пространство задаёт ?workspace=<id>. Запросы изменения задачи и статуса включают version; DELETE принимает {version}. Метаданные и связи проверяются внутри пространства. Приглашения одноразовые на 7 дней; в базе только SHA-256 токена.
+
+## Текущий режим работы
+Есть три варианта запуска. GitHub Pages хранит состояние в localStorage одного браузера. Node API использует доверенный X-Demo-Actor и требует защищающего шлюза для публичного доступа. Размещённая версия использует вход ChatGPT и D1, изменения доступны вошедшим участникам общего пространства. В локальном API есть отдельные пространства и роли. Обновление данных — после действия или по кнопке. Автоматические копии SQLite относятся только к работающему Node-серверу; D1 обслуживается отдельно.

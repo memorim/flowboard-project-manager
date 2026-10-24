@@ -1,0 +1,144 @@
+[
+  {
+    "method": "get",
+    "path": "/api/session",
+    "status": 200,
+    "body": {
+      "canWrite": "boolean",
+      "mode": "string",
+      "user": {
+        "color": "string",
+        "id": "number",
+        "initials": "string|null",
+        "name": "string",
+        "role": "string"
+      },
+      "workspace": {
+        "access_role": "string",
+        "id": "number",
+        "is_public": "number",
+        "name": "string"
+      }
+    }
+  },
+  {
+    "method": "get",
+    "path": "/api/tasks/page",
+    "status": 200,
+    "body": {
+      "items": [
+        {
+          "assignee_color": "string|null",
+          "assignee_id": "number|null",
+          "assignee_name": "string|null",
+          "deleted_at": "string|null",
+          "description": "string",
+          "due_date": "string",
+          "id": "number",
+          "initials": "string|null",
+          "priority": "string",
+          "project_color": "string",
+          "project_id": "number",
+          "project_name": "string",
+          "status": "string",
+          "title": "string",
+          "version": "number"
+        }
+      ],
+      "limit": "number",
+      "offset": "number",
+      "total": "number"
+    }
+  },
+  {
+    "method": "get",
+    "path": "/api/meta",
+    "status": 200,
+    "body": {
+      "members": [
+        {
+          "access_role": "string",
+          "color": "string",
+          "id": "number",
+          "initials": "string|null",
+          "name": "string",
+          "role": "string",
+          "task_count": "number"
+        }
+      ],
+      "projects": [
+        {
+          "client": "string",
+          "color": "string",
+          "due_date": "string",
+          "id": "number",
+          "name": "string",
+          "progress": "number",
+          "workspace_id": "number"
+        }
+      ]
+    }
+  },
+  {
+    "method": "get",
+    "path": "/api/dashboard",
+    "status": 200,
+    "body": {
+      "activity": [
+        {
+          "color": "string",
+          "created_at": "string",
+          "id": "number",
+          "initials": "string|null",
+          "member_id": "number",
+          "name": "string",
+          "text": "string",
+          "workspace_id": "number"
+        }
+      ],
+      "projects": [
+        {
+          "client": "string",
+          "color": "string",
+          "done_count": "number",
+          "due_date": "string",
+          "id": "number",
+          "name": "string",
+          "progress": "number",
+          "task_count": "number",
+          "workspace_id": "number"
+        }
+      ],
+      "stats": {
+        "done": "number",
+        "inProgress": "number",
+        "review": "number",
+        "total": "number"
+      }
+    }
+  },
+  {
+    "method": "post",
+    "path": "/api/tasks",
+    "status": 201,
+    "body": {
+      "assigneeId": "null",
+      "description": "string",
+      "dueDate": "string",
+      "id": "number",
+      "priority": "string",
+      "projectId": "number",
+      "status": "string",
+      "title": "string",
+      "version": "number"
+    }
+  },
+  {
+    "method": "post",
+    "path": "/api/tasks",
+    "status": 400,
+    "body": {
+      "message": "string"
+    }
+  }
+]

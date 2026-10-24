@@ -1,0 +1,38 @@
+{
+  "databaseModule": "server/db.ts",
+  "appModule": "server/app.ts",
+  "endpoints": [
+    {
+      "path": "/api/session"
+    },
+    {
+      "path": "/api/tasks/page"
+    },
+    {
+      "path": "/api/meta"
+    },
+    {
+      "path": "/api/dashboard"
+    },
+    {
+      "method": "post",
+      "path": "/api/tasks",
+      "status": 201,
+      "body": {
+        "title": "Contract task",
+        "description": "Contract fields",
+        "status": "todo",
+        "priority": "medium",
+        "projectId": 1,
+        "assigneeId": null,
+        "dueDate": "2030-01-10"
+      }
+    },
+    {
+      "method": "post",
+      "path": "/api/tasks",
+      "status": 400,
+      "body": {}
+    }
+  ]
+}

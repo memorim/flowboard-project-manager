@@ -15,7 +15,7 @@ export async function backupDatabase(source:string,destination:string,log:LogSin
   const bytes=(await stat(destination)).size;log({event:'database_backup',requestId,status:'ok',bytes,durationMs:Number((performance.now()-start).toFixed(2))});return {requestId,bytes};
  }catch(error){
   check?.close();check=undefined;if(created)await rm(destination,{force:true});
-  log({event:'database_backup',requestId,status:'failed',durationMs:Number((performance.now()-start).toFixed(2))});throw error;
+  log({event:'database_backup',requestId,status:'failed',durationMs:Number((performance.now()-start).toFixed(2))});throw Object.assign(error instanceof Error?error:new Error('backup_failed'),{requestId});
  }finally{check?.close();db?.close();}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){

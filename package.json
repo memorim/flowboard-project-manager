@@ -1,6 +1,6 @@
 {
   "name": "flowboard",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,7 +15,10 @@
     "test:e2e": "playwright test",
     "measure": "node --import tsx scripts/measure.ts",
     "measure:scale": "node --import tsx scripts/scale.ts",
-    "backup": "node --import tsx server/backup.ts"
+    "backup": "node --import tsx server/backup.ts",
+    "test:upgrade": "node tests/check-upgrade.mjs",
+    "backup:status": "node --import tsx server/backup-status.ts",
+    "test:contract": "node --import tsx tests/check-contract.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",

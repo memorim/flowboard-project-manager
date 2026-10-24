@@ -10,3 +10,5 @@ Thumbs.db
 
 playwright-report/
 test-results/
+
+.upgrade-test-*/
