@@ -1,10 +1,11 @@
+import {observe} from '../../portfolio/observability';
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '../../chatgpt-auth';
 import {flowApi,tokenHash,type Actor,type SqlDB} from '../../portfolio/flow-api';
 import seed from './seed.json';
 import {seatlyApi} from '../../seatly-data/api';
 export const dynamic='force-dynamic';
-async function route(req:Request){
+async function handleRoute(req:Request){
  try{
   const db=env.DB;if(!db)return Response.json({message:'База временно недоступна'},{status:503});
   if(new URL(req.url).pathname.startsWith('/api/seatly/')){const identity=await getChatGPTUser();return seatlyApi(req,db as unknown as SqlDB,identity?await tokenHash(identity.userId):null);}
@@ -24,6 +25,7 @@ async function route(req:Request){
   const identity=await getChatGPTUser();let actor:Actor|null=null;
   if(identity){const key=await tokenHash(identity.userId);await db.prepare('INSERT OR IGNORE INTO members(name,role,initials,color,site_key) VALUES (?,?,?,?,?)').bind('Участник '+key.slice(0,4).toUpperCase(),'Участник демо',key.slice(0,2).toUpperCase(),'#d7c9ff',key).run();actor=await db.prepare('SELECT id,name,role,initials,color FROM members WHERE site_key=?').bind(key).first<Actor>();}
   return flowApi(req,db as unknown as SqlDB,actor,'chatgpt');
- }catch(e){console.error('Flowboard adapter failed:',e instanceof Error?e.name:'UnknownError');return Response.json({message:'Сервис временно недоступен'},{status:503,headers:{'Cache-Control':'no-store'}});}
+ }catch(e){return Response.json({message:'Сервис временно недоступен'},{status:503,headers:{'Cache-Control':'no-store'}});}
 }
+const route=(req:Request)=>observe(req,()=>handleRoute(req));
 export{route as GET,route as POST,route as PATCH,route as DELETE};

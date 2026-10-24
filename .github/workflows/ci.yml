@@ -26,7 +26,7 @@ jobs:
       - run: pnpm test
       - run: pnpm typecheck
       - run: pnpm build
-      - run: pnpm exec playwright install --with-deps --only-shell chromium
+      - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm test:e2e
       - run: pnpm build:demo
       - uses: actions/upload-pages-artifact@v3

@@ -61,3 +61,7 @@ pnpm start
 [Сценарии и ограничения проверки](docs/SYNTHETIC_TESTING.md) · [Измерения](docs/SYNTHETIC_METRICS.json) · [Подготовка к собеседованию](docs/INTERVIEW.md)
 
 Повторить: `pnpm test`, `pnpm test:e2e`, `pnpm measure`. В `tests/backup.test.ts` проверяется восстановление копии временной базы, без изменения рабочей БД.
+
+## Повторы, демонстрация и журнал
+
+[Проверки надёжности, большие данные и резервное копирование](docs/ROUND3.md).

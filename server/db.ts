@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import {readFileSync} from 'node:fs';
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
@@ -62,10 +63,16 @@ export function createDatabase(filename = resolve('data', 'flowboard.db')) {
     CREATE TABLE IF NOT EXISTS memberships(workspace_id INTEGER NOT NULL REFERENCES workspaces(id),member_id INTEGER NOT NULL REFERENCES members(id),role TEXT NOT NULL CHECK(role IN ('owner','editor','viewer')),PRIMARY KEY(workspace_id,member_id));
     CREATE TABLE IF NOT EXISTS invitations(id INTEGER PRIMARY KEY AUTOINCREMENT,workspace_id INTEGER NOT NULL REFERENCES workspaces(id),token_hash TEXT NOT NULL UNIQUE,role TEXT NOT NULL CHECK(role IN ('editor','viewer')),expires_at TEXT NOT NULL,created_by INTEGER NOT NULL REFERENCES members(id),accepted_by INTEGER REFERENCES members(id));
     INSERT OR IGNORE INTO workspaces(id,name,is_public) VALUES (1,'Общее демо',1);`);
-  for (const [table,column,definition] of [['projects','workspace_id','INTEGER NOT NULL DEFAULT 1'],['activity','workspace_id','INTEGER NOT NULL DEFAULT 1'],['tasks','version','INTEGER NOT NULL DEFAULT 1']]) {
+  for (const [table,column,definition] of [['projects','workspace_id','INTEGER NOT NULL DEFAULT 1'],['activity','workspace_id','INTEGER NOT NULL DEFAULT 1'],['tasks','version','INTEGER NOT NULL DEFAULT 1'],['tasks','deleted_at','TEXT'],['tasks','changed_by','INTEGER REFERENCES members(id)']]) {
     if (!(db.prepare(`PRAGMA table_info(${table})`).all() as {name:string}[]).some(c=>c.name===column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
   db.exec('CREATE INDEX IF NOT EXISTS projects_workspace ON projects(workspace_id); CREATE INDEX IF NOT EXISTS activity_workspace ON activity(workspace_id,id);');
+  for(const column of ['request_key','request_payload','create_result']){
+    if(!(db.prepare('PRAGMA table_info(tasks)').all() as {name:string}[]).some(c=>c.name===column))db.exec(`ALTER TABLE tasks ADD COLUMN ${column} TEXT`);
+  }
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS tasks_request_key ON tasks(request_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS tasks_project_state_due ON tasks(project_id,status,due_date,id);CREATE INDEX IF NOT EXISTS tasks_project_due ON tasks(project_id,due_date,id);');
+  db.exec(readFileSync(new URL('./task-history.sql',import.meta.url),'utf8'));
   const count = db.prepare('SELECT COUNT(*) AS count FROM members').get() as { count: number };
   if (count.count === 0) {
     db.exec(seedSql);

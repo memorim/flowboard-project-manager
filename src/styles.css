@@ -54,3 +54,11 @@ main { min-width: 0; }
 .sidebar a{color:inherit;text-decoration:none}.sidebar a:hover{text-decoration:underline}.sidebar a:focus-visible{outline:2px solid #ff784f;outline-offset:4px}
 
 .workspace-bar{display:flex;align-items:end;gap:12px;flex-wrap:wrap;padding:18px 40px;border-bottom:1px solid #deded8;background:#f5f4ee}.workspace-bar label{display:grid;gap:5px;font-size:12px}.workspace-bar select{max-width:300px;padding:9px;border:1px solid #b8b8ae;border-radius:8px;background:#fff}.access-badge{padding:10px;color:#4c4b45;font-size:12px}.workspace-bar a{color:#69432f;font-size:12px}.workspace-dialog>p{font-size:13px;line-height:1.6}.workspace-dialog form,.workspace-dialog section{display:grid;gap:12px;margin-top:22px}.workspace-dialog section form{margin:0}.membership-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid #ddd}.membership-row>span{flex:1}.membership-row small{display:block;color:#5d5c54;margin-top:5px}.invite-banner{display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:#fff1d4;padding:18px 40px}.invite-banner a{color:#663b17}@media(max-width:760px){.workspace-bar{padding:14px 18px;gap:8px}.workspace-bar label{width:100%}.workspace-bar select{max-width:100%}.workspace-bar .button{font-size:11px;padding:9px}.membership-row{flex-wrap:wrap}.membership-row>span{min-width:100%}.invite-banner{padding:16px 18px}}
+
+.pagination{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:18px 0;flex-wrap:wrap;font-size:12px}.pagination span{min-width:80px}
+
+.trash-list{display:grid;gap:15px}.trash-list .panel{padding:20px}.trash-list h2{font-size:17px}.trash-list p{font-size:13px}.trash-list button{margin:5px}.history-entry{border-top:1px solid var(--line);padding:14px 0}.history-entry h3{font-size:14px}.history-entry time,.history-entry p{font-size:12px}.history-entry dl{display:grid;gap:10px;font-size:12px}.history-entry dt{font-weight:700}.history-entry dd{margin:4px 0;overflow-wrap:anywhere}
+
+.guided-demo>p{font-size:14px;line-height:1.7}.guided-demo>button{margin-top:14px}.demo-launch{padding:15px 36px 0;display:flex;justify-content:flex-end}@media(max-width:500px){.demo-launch{padding:12px 18px 0}}
+
+button,input,select{min-height:24px}button{min-width:24px}input:focus-visible,textarea:focus-visible{outline:3px solid #b54b27;outline-offset:3px}

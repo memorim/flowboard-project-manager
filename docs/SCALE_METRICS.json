@@ -1,0 +1,53 @@
+{
+  "kind": "synthetic-sqlite-scale",
+  "date": "2026-10-24T04:48:10.209Z",
+  "node": "v24.18.0",
+  "platform": "win32",
+  "synthetic_records": 10000,
+  "page_size": 40,
+  "non_overlapping_pages": true,
+  "filtered_matches": 1,
+  "before": {
+    "p50_ms": 0.9224,
+    "p95_ms": 1.4894,
+    "plan": [
+      {
+        "id": 6,
+        "parent": 0,
+        "notused": 44,
+        "detail": "SEARCH p USING COVERING INDEX projects_workspace (workspace_id=? AND rowid=?)"
+      },
+      {
+        "id": 14,
+        "parent": 0,
+        "notused": 215,
+        "detail": "SCAN t USING INDEX tasks_request_key"
+      },
+      {
+        "id": 32,
+        "parent": 0,
+        "notused": 0,
+        "detail": "USE TEMP B-TREE FOR ORDER BY"
+      }
+    ]
+  },
+  "after": {
+    "p50_ms": 0.0301,
+    "p95_ms": 0.0907,
+    "plan": [
+      {
+        "id": 6,
+        "parent": 0,
+        "notused": 44,
+        "detail": "SEARCH p USING COVERING INDEX projects_workspace (workspace_id=? AND rowid=?)"
+      },
+      {
+        "id": 14,
+        "parent": 0,
+        "notused": 61,
+        "detail": "SEARCH t USING INDEX tasks_project_state_due (project_id=? AND status=?)"
+      }
+    ]
+  },
+  "limits": "Fresh in-memory SQLite; query microbenchmark and loopback API correctness, not hosted capacity or real users."
+}

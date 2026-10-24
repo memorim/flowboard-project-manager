@@ -4,6 +4,7 @@ test('keyboard focus, Escape and reflow at 320 and 640 CSS pixels',async({page})
  for(const width of [320,640]){
   await page.setViewportSize({width,height:900});
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+  const small=await page.locator('button:visible,input:visible,select:visible').evaluateAll(es=>es.map(e=>({label:e.getAttribute('aria-label')||e.textContent?.trim(),r:e.getBoundingClientRect()})).filter(({r})=>r.width<23.9||r.height<23.9).map(({label})=>label));expect(small).toEqual([]);
   const opener=page.getByRole('button',{name:'Новая задача',exact:true});await expect(opener).toBeEnabled();await opener.focus();await opener.press('Enter');
   const d=page.getByRole('dialog');await expect(d).toBeVisible();await expect(d.getByRole('heading',{name:'Что нужно сделать?',exact:true})).toBeVisible();
   await expect.poll(()=>d.evaluate(e=>e.scrollWidth<=e.clientWidth+1)).toBe(true);

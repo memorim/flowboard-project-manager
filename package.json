@@ -13,7 +13,9 @@
     "typecheck": "tsc -b --pretty false",
     "build:demo": "tsc -b && vite build --mode demo",
     "test:e2e": "playwright test",
-    "measure": "node --import tsx scripts/measure.ts"
+    "measure": "node --import tsx scripts/measure.ts",
+    "measure:scale": "node --import tsx scripts/scale.ts",
+    "backup": "node --import tsx server/backup.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
