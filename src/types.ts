@@ -3,6 +3,7 @@ export type Priority = 'low' | 'medium' | 'high';
 
 export interface Task {
   id: number;
+  version: number;
   title: string;
   description: string;
   status: Status;
@@ -28,7 +29,7 @@ export interface Project {
   done_count: number;
 }
 
-export interface Member { id: number; name: string; role: string; initials: string; color: string }
+export interface Member { id: number; name: string; role: string; initials: string; color: string; access_role?: string }
 export interface Activity { id: number; text: string; name: string; initials: string; color: string; created_at: string }
 export interface Dashboard {
   stats: { total: number; done: number; inProgress: number; review: number };
@@ -36,3 +37,6 @@ export interface Dashboard {
   activity: Activity[];
 }
 
+
+export interface Workspace {id:number;name:string;is_public:number;access_role:string}
+export interface Session {mode:string;user:Member|null;workspace:Workspace;canWrite:boolean}

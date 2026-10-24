@@ -1,0 +1,15 @@
+{
+  "kind": "synthetic-local-http",
+  "date": "2026-10-24T02:12:42.004Z",
+  "node": "v24.18.0",
+  "platform": "win32",
+  "endpoint": "/api/dashboard",
+  "requests": 200,
+  "concurrency": 10,
+  "errors": 0,
+  "p50_ms": 8.62,
+  "p95_ms": 14.06,
+  "p99_ms": 21.52,
+  "elapsed_ms": 196.3,
+  "limits": "Loopback HTTP and fresh in-memory SQLite; not hosted latency, user feedback or production capacity."
+}

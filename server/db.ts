@@ -58,6 +58,14 @@ export function createDatabase(filename = resolve('data', 'flowboard.db')) {
       member_id INTEGER NOT NULL REFERENCES members(id), created_at TEXT NOT NULL
     );
   `);
+  db.exec(`CREATE TABLE IF NOT EXISTS workspaces(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,is_public INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS memberships(workspace_id INTEGER NOT NULL REFERENCES workspaces(id),member_id INTEGER NOT NULL REFERENCES members(id),role TEXT NOT NULL CHECK(role IN ('owner','editor','viewer')),PRIMARY KEY(workspace_id,member_id));
+    CREATE TABLE IF NOT EXISTS invitations(id INTEGER PRIMARY KEY AUTOINCREMENT,workspace_id INTEGER NOT NULL REFERENCES workspaces(id),token_hash TEXT NOT NULL UNIQUE,role TEXT NOT NULL CHECK(role IN ('editor','viewer')),expires_at TEXT NOT NULL,created_by INTEGER NOT NULL REFERENCES members(id),accepted_by INTEGER REFERENCES members(id));
+    INSERT OR IGNORE INTO workspaces(id,name,is_public) VALUES (1,'Общее демо',1);`);
+  for (const [table,column,definition] of [['projects','workspace_id','INTEGER NOT NULL DEFAULT 1'],['activity','workspace_id','INTEGER NOT NULL DEFAULT 1'],['tasks','version','INTEGER NOT NULL DEFAULT 1']]) {
+    if (!(db.prepare(`PRAGMA table_info(${table})`).all() as {name:string}[]).some(c=>c.name===column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS projects_workspace ON projects(workspace_id); CREATE INDEX IF NOT EXISTS activity_workspace ON activity(workspace_id,id);');
   const count = db.prepare('SELECT COUNT(*) AS count FROM members').get() as { count: number };
   if (count.count === 0) {
     db.exec(seedSql);
@@ -70,6 +78,7 @@ export function createDatabase(filename = resolve('data', 'flowboard.db')) {
     db.exec('DELETE FROM activity');
     db.prepare('INSERT INTO activity(text,member_id,created_at) VALUES (?,?,?)').run('подготовил(а) демонстрационное рабочее пространство',4,new Date().toISOString());
   }
+  db.exec("INSERT OR IGNORE INTO memberships(workspace_id,member_id,role) SELECT 1,id,CASE WHEN id=4 THEN 'owner' ELSE 'editor' END FROM members");
   return db;
 }
 
