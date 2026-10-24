@@ -40,8 +40,8 @@ export default function App(){
   const [guide,setGuide]=useState(false);
   const [historyTask,setHistoryTask]=useState<Task|null>(null);
   const [taskOffset,setTaskOffset]=useState(0),[taskTotal,setTaskTotal]=useState(0);
-  const requestNumber=useRef(0);
-  const load=async()=>{const number=++requestNumber.current;setLoading(true);setError('');setSession(s=>({...s,canWrite:false}));try{
+  const requestNumber=useRef(0),loadedScope=useRef('');
+  const load=async()=>{const number=++requestNumber.current;setLoading(true);setError('');const scope=workspaceId()+':'+(localStorage.getItem('flowboard-actor')||'4');if(loadedScope.current!==scope){loadedScope.current=scope;setSession(s=>({...s,canWrite:false}));setDashboard(null);setTasks([]);setMembers([]);setProjects([]);}try{
     const spaces=await api.workspaces();if(number!==requestNumber.current)return;
     if(!spaces.some(w=>w.id===workspaceId()))selectWorkspace(1);
     const [dash,list,meta,user]=await Promise.all([api.dashboard(),(view==='trash'?api.trashPage:api.taskPage)({search:query,project,assignee,status:statusFilter,limit:40,offset:taskOffset}),api.meta(),api.session()]);if(number!==requestNumber.current)return;
