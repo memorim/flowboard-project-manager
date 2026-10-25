@@ -42,12 +42,8 @@
           "name": "activity_member_id_members_id_fk",
           "tableFrom": "activity",
           "tableTo": "members",
-          "columnsFrom": [
-            "member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["member_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -105,9 +101,7 @@
       "indexes": {
         "members_site_key_unique": {
           "name": "members_site_key_unique",
-          "columns": [
-            "site_key"
-          ],
+          "columns": ["site_key"],
           "isUnique": true
         }
       },
@@ -227,12 +221,8 @@
           "name": "tasks_project_id_projects_id_fk",
           "tableFrom": "tasks",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -240,12 +230,8 @@
           "name": "tasks_assignee_id_members_id_fk",
           "tableFrom": "tasks",
           "tableTo": "members",
-          "columnsFrom": [
-            "assignee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["assignee_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

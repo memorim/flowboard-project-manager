@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import {readFileSync} from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
@@ -37,10 +37,10 @@ const seedSql = `
 export function createDatabase(filename = resolve('data', 'flowboard.db')) {
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true });
   const db = new DatabaseSync(filename);
-  try{
-  db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
-  db.exec('BEGIN IMMEDIATE');
-  db.exec(`
+  try {
+    db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
+    db.exec('BEGIN IMMEDIATE');
+    db.exec(`
     CREATE TABLE IF NOT EXISTS members (
       id INTEGER PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL,
       initials TEXT NOT NULL, color TEXT NOT NULL
@@ -61,35 +61,73 @@ export function createDatabase(filename = resolve('data', 'flowboard.db')) {
       member_id INTEGER NOT NULL REFERENCES members(id), created_at TEXT NOT NULL
     );
   `);
-  db.exec(`CREATE TABLE IF NOT EXISTS workspaces(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,is_public INTEGER NOT NULL DEFAULT 0);
+    db.exec(`CREATE TABLE IF NOT EXISTS workspaces(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,is_public INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS memberships(workspace_id INTEGER NOT NULL REFERENCES workspaces(id),member_id INTEGER NOT NULL REFERENCES members(id),role TEXT NOT NULL CHECK(role IN ('owner','editor','viewer')),PRIMARY KEY(workspace_id,member_id));
     CREATE TABLE IF NOT EXISTS invitations(id INTEGER PRIMARY KEY AUTOINCREMENT,workspace_id INTEGER NOT NULL REFERENCES workspaces(id),token_hash TEXT NOT NULL UNIQUE,role TEXT NOT NULL CHECK(role IN ('editor','viewer')),expires_at TEXT NOT NULL,created_by INTEGER NOT NULL REFERENCES members(id),accepted_by INTEGER REFERENCES members(id));
     INSERT OR IGNORE INTO workspaces(id,name,is_public) VALUES (1,'Общее демо',1);`);
-  for (const [table,column,definition] of [['projects','workspace_id','INTEGER NOT NULL DEFAULT 1'],['activity','workspace_id','INTEGER NOT NULL DEFAULT 1'],['tasks','version','INTEGER NOT NULL DEFAULT 1'],['tasks','deleted_at','TEXT'],['tasks','changed_by','INTEGER REFERENCES members(id)']]) {
-    if (!(db.prepare(`PRAGMA table_info(${table})`).all() as {name:string}[]).some(c=>c.name===column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-  }
-  db.exec('CREATE INDEX IF NOT EXISTS projects_workspace ON projects(workspace_id); CREATE INDEX IF NOT EXISTS activity_workspace ON activity(workspace_id,id);');
-  for(const column of ['request_key','request_payload','create_result']){
-    if(!(db.prepare('PRAGMA table_info(tasks)').all() as {name:string}[]).some(c=>c.name===column))db.exec(`ALTER TABLE tasks ADD COLUMN ${column} TEXT`);
-  }
-  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS tasks_request_key ON tasks(request_key)');
-  db.exec('CREATE INDEX IF NOT EXISTS tasks_project_state_due ON tasks(project_id,status,due_date,id);CREATE INDEX IF NOT EXISTS tasks_project_due ON tasks(project_id,due_date,id);');
-  db.exec(readFileSync(new URL('./task-history.sql',import.meta.url),'utf8'));
-  const count = db.prepare('SELECT COUNT(*) AS count FROM members').get() as { count: number };
-  if (count.count === 0) {
-    db.exec(seedSql);
-    for (const table of ['projects', 'tasks']) {
-      for (const row of db.prepare(`SELECT id,due_date FROM ${table}`).all() as {id:number;due_date:string}[]) {
-        const due = new Date(Date.now() + (new Date(row.due_date).getTime() - new Date('2026-07-04').getTime())).toISOString().slice(0,10);
-        db.prepare(`UPDATE ${table} SET due_date=? WHERE id=?`).run(due,row.id);
-      }
+    for (const [table, column, definition] of [
+      ['projects', 'workspace_id', 'INTEGER NOT NULL DEFAULT 1'],
+      ['activity', 'workspace_id', 'INTEGER NOT NULL DEFAULT 1'],
+      ['tasks', 'version', 'INTEGER NOT NULL DEFAULT 1'],
+      ['tasks', 'deleted_at', 'TEXT'],
+      ['tasks', 'changed_by', 'INTEGER REFERENCES members(id)'],
+    ]) {
+      if (
+        !(db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some(
+          (c) => c.name === column,
+        )
+      )
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
     }
-    db.exec('DELETE FROM activity');
-    db.prepare('INSERT INTO activity(text,member_id,created_at) VALUES (?,?,?)').run('подготовил(а) демонстрационное рабочее пространство',4,new Date().toISOString());
+    db.exec(
+      'CREATE INDEX IF NOT EXISTS projects_workspace ON projects(workspace_id); CREATE INDEX IF NOT EXISTS activity_workspace ON activity(workspace_id,id);',
+    );
+    for (const column of ['request_key', 'request_payload', 'create_result']) {
+      if (
+        !(db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[]).some(
+          (c) => c.name === column,
+        )
+      )
+        db.exec(`ALTER TABLE tasks ADD COLUMN ${column} TEXT`);
+    }
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS tasks_request_key ON tasks(request_key)');
+    db.exec(
+      'CREATE INDEX IF NOT EXISTS tasks_project_state_due ON tasks(project_id,status,due_date,id);CREATE INDEX IF NOT EXISTS tasks_project_due ON tasks(project_id,due_date,id);',
+    );
+    db.exec(readFileSync(new URL('./task-history.sql', import.meta.url), 'utf8'));
+    const count = db.prepare('SELECT COUNT(*) AS count FROM members').get() as { count: number };
+    if (count.count === 0) {
+      db.exec(seedSql);
+      for (const table of ['projects', 'tasks']) {
+        for (const row of db.prepare(`SELECT id,due_date FROM ${table}`).all() as {
+          id: number;
+          due_date: string;
+        }[]) {
+          const due = new Date(
+            Date.now() + (new Date(row.due_date).getTime() - new Date('2026-07-04').getTime()),
+          )
+            .toISOString()
+            .slice(0, 10);
+          db.prepare(`UPDATE ${table} SET due_date=? WHERE id=?`).run(due, row.id);
+        }
+      }
+      db.exec('DELETE FROM activity');
+      db.prepare('INSERT INTO activity(text,member_id,created_at) VALUES (?,?,?)').run(
+        'подготовил(а) демонстрационное рабочее пространство',
+        4,
+        new Date().toISOString(),
+      );
+    }
+    db.exec(
+      "INSERT OR IGNORE INTO memberships(workspace_id,member_id,role) SELECT 1,id,CASE WHEN id=4 THEN 'owner' ELSE 'editor' END FROM members WHERE id BETWEEN 1 AND 4",
+    );
+    db.exec(readFileSync(new URL('./auth-schema.sql', import.meta.url), 'utf8'));
+    db.exec(readFileSync(new URL('./access-constraints.sql', import.meta.url), 'utf8'));
+    db.exec('COMMIT');
+    return db;
+  } catch (error) {
+    if (db.isTransaction) db.exec('ROLLBACK');
+    db.close();
+    throw error;
   }
-  db.exec("INSERT OR IGNORE INTO memberships(workspace_id,member_id,role) SELECT 1,id,CASE WHEN id=4 THEN 'owner' ELSE 'editor' END FROM members");
-  db.exec(readFileSync(new URL('./access-constraints.sql',import.meta.url),'utf8'));
-  db.exec('COMMIT');return db;
-  }catch(error){if(db.isTransaction)db.exec('ROLLBACK');db.close();throw error;}
 }
-

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+data/
+docs/
+**/*.md
+pnpm-lock.yaml
+.upgrade-test-*/
+playwright-report/
+test-results/
+dist-*/

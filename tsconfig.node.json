@@ -7,16 +7,14 @@
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "noEmit": true,
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
   "include": [
     "vite.config.ts",
     "server/**/*.ts",
     "tests/**/*.ts",
     "src/task-schema.ts",
-    "src/flow-api.ts",
+    "src/flow-*.ts",
     "src/observability.ts"
   ]
 }

@@ -1,3 +1,5 @@
+> Historical notes from an earlier revision. For the current standalone authentication and migration procedure, see [Session model](SESSION_AUTH.md). Demo actor headers require explicit local demo mode.
+
 # Искусственное тестирование
 
 Все роли и данные в этом раунде вымышленные. Браузерные контексты имитируют независимые сессии, а не реальных людей.

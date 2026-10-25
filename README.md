@@ -6,11 +6,13 @@ Coordinate projects and tasks without silently overwriting another participant�
 
 The browser-only build stores data locally. The hosted sandbox is a separate revision/deployment; new local audit guarantees are described below.
 
-![Desktop interface](docs/desktop.png)
+![Current local desktop interface](docs/desktop.png)
 
-<img src="docs/mobile.png" width="320" alt="Mobile interface">
+<img src="docs/mobile.png" width="320" alt="Current local mobile interface">
 
-[Short interaction recording](docs/demo.gif)
+Screenshots were captured from the running local application with its bundled fixture data.
+
+[Earlier sandbox interaction recording](docs/demo.gif)
 
 ## Implemented
 
@@ -36,7 +38,7 @@ Batch --> DB[(SQLite locally / D1 hosted)]
 - `server/access-constraints.sql` checks current membership inside task mutations, validates assignees and requires current ownership when creating invitations. An editor revoked after request validation cannot commit a late write.
 - Membership/project changes use SQL conditions that recheck current privileges. Task changes, history triggers and activity are committed together; failures roll the batch back.
 - Invitation tokens contain 32 random bytes; only hashes are stored. Conditional acceptance grants one membership, and a consumed/expired invitation returns 410.
-- The public workspace deliberately enrols visitors as editors. Other workspaces require explicit membership; task, history and export queries are scoped to the selected workspace.
+- Standalone accounts use verified server sessions; client-selected actor headers are ignored. New accounts can create private workspaces and have read-only access to the sample workspace. The separate browser/native sandboxes retain their documented collaborative behavior.
 
 ## Local setup
 
@@ -45,6 +47,7 @@ Node.js 24.18.0 and pnpm 11.7.0 (see version files).
 ```bash
 npm install --global pnpm@11.7.0
 pnpm install --frozen-lockfile
+# Provision an account using docs/SESSION_AUTH.md to edit private workspaces.
 pnpm build
 pnpm start
 ```
@@ -62,6 +65,8 @@ SQLite is stored at `data/flowboard.db`. Initialization creates/migrates the sch
 ## Verification
 
 ```bash
+pnpm lint
+pnpm format:check
 pnpm test
 pnpm test:contract
 pnpm test:upgrade
@@ -69,16 +74,19 @@ pnpm typecheck
 pnpm build
 pnpm exec playwright install chromium firefox webkit
 pnpm test:e2e
+pnpm test:e2e:auth
 pnpm audit --audit-level=high
 ```
 
 `tests/audit.test.ts`: revocation between validation and commit, and competing invitation acceptance. Existing API/E2E tests cover viewer restrictions, workspace isolation, stale versions, draft preservation, restoration and backup recovery.
 
-CI installs locked dependencies and runs the configured checks; documentation checks also validate local links/images. Python dependency auditing uses `pip-audit --disable-pip --no-deps --strict -r requirements-lock.txt`. A passing scanner only reports known advisories at the time of the run.
+CI installs locked dependencies and runs the configured checks; documentation checks also validate local links/images. A passing scanner only reports known advisories at the time of the run.
+
+[Account provisioning, trust modes and migration](docs/SESSION_AUTH.md). The standalone server starts read-only until you log in; no sample passwords are provisioned automatically.
 
 ## Limits and next steps
 
-- The local Node adapter trusts the `X-Demo-Actor` development header; it is not public authentication. It binds to loopback by default. Do not expose it as a multi-user service without a verified identity adapter.
+- Standalone authentication uses administrator-provisioned accounts, salted scrypt and opaque revocable cookie sessions. Demo identity requires explicit non-production loopback configuration. See [session setup and migration](docs/SESSION_AUTH.md).
 - The native hosted version uses ChatGPT identity and D1. Its currently deployed revision is separate; repository security fixes are not a claim that a new Site version has been deployed.
 - The public sandbox is intentionally collaborative. Request limits and workspace quotas are small per-demo controls, not distributed admission control.
 - SQLite is a single-writer store. No email invitation delivery, billing or organization directory integration is implemented.
@@ -90,3 +98,5 @@ CI installs locked dependencies and runs the configured checks; documentation ch
 [API request/response example](docs/API_EXAMPLE.md)
 
 [Scheduled backups and recovery](docs/SCHEDULED_BACKUPS.md) · [Hosted adapter](hosting/README.md)
+
+[Revision and deployment checks](docs/DEPLOYMENT_CHECKS.md) — read-only `pnpm smoke` verifies a running Node API and an optional expected source SHA.
