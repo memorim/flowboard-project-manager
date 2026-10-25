@@ -6,11 +6,13 @@ Coordinate projects and tasks without silently overwriting another participantâ€
 
 The browser-only build stores data locally. The hosted sandbox is a separate revision/deployment; new local audit guarantees are described below.
 
-![Desktop interface](docs/desktop.png)
+![Current local desktop interface](docs/desktop.png)
 
-<img src="docs/mobile.png" width="320" alt="Mobile interface">
+<img src="docs/mobile.png" width="320" alt="Current local mobile interface">
 
-[Short interaction recording](docs/demo.gif)
+Screenshots were captured from the running local application with its bundled fixture data.
+
+[Earlier sandbox interaction recording](docs/demo.gif)
 
 ## Implemented
 
