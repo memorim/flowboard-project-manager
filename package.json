@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently -n API,WEB -c magenta,cyan \"pnpm dev:api\" \"pnpm dev:web\"",
     "dev:api": "tsx watch server/index.ts",
-    "dev:web": "vite --host 0.0.0.0",
+    "dev:web": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "start": "tsx server/index.ts",
     "test": "node --test --import tsx tests/*.test.ts tests/demo.test.mjs",
@@ -21,27 +21,27 @@
     "test:contract": "node --import tsx tests/check-contract.mjs"
   },
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
     "lucide-react": "^0.468.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "zod": "^3.24.1"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.1",
-    "@types/node": "^22.10.5",
-    "@types/react": "^19.0.3",
-    "@types/react-dom": "^19.0.2",
-    "@types/supertest": "^6.0.2",
-    "@vitejs/plugin-react": "^4.3.4",
-    "concurrently": "^9.1.2",
-    "supertest": "^7.0.0",
-    "tsx": "^4.19.2",
-    "typescript": "~5.7.2",
-    "vite": "^6.0.7"
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/supertest": "^6.0.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^9.2.5",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "~5.7.3",
+    "vite": "^6.4.5"
   },
   "packageManager": "pnpm@11.7.0",
   "engines": {

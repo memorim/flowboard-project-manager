@@ -37,8 +37,9 @@ const seedSql = `
 export function createDatabase(filename = resolve('data', 'flowboard.db')) {
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true });
   const db = new DatabaseSync(filename);
+  db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
+  db.exec('BEGIN IMMEDIATE');try{
   db.exec(`
-    PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS members (
       id INTEGER PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL,
       initials TEXT NOT NULL, color TEXT NOT NULL
@@ -86,6 +87,8 @@ export function createDatabase(filename = resolve('data', 'flowboard.db')) {
     db.prepare('INSERT INTO activity(text,member_id,created_at) VALUES (?,?,?)').run('подготовил(а) демонстрационное рабочее пространство',4,new Date().toISOString());
   }
   db.exec("INSERT OR IGNORE INTO memberships(workspace_id,member_id,role) SELECT 1,id,CASE WHEN id=4 THEN 'owner' ELSE 'editor' END FROM members");
-  return db;
+  db.exec(readFileSync(new URL('./access-constraints.sql',import.meta.url),'utf8'));
+  db.exec('COMMIT');return db;
+  }catch(error){if(db.isTransaction)db.exec('ROLLBACK');db.close();throw error;}
 }
 

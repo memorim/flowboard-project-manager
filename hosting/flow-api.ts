@@ -11,7 +11,7 @@ export class HttpError extends Error {constructor(public status:number,message:s
 const nameSchema=z.object({name:z.string().trim().min(2).max(80)}).strict();
 const accessRole=z.enum(['editor','viewer']),versionSchema=z.number().int().positive();
 const editSchema=taskSchema.extend({version:versionSchema});
-const statusSchema=z.object({status:taskSchema.shape.status.removeDefault(),version:versionSchema}).strict();
+const statusSchema=z.object({status:taskSchema.shape.status.unwrap(),version:versionSchema}).strict();
 const join=`SELECT t.id,t.title,t.description,t.status,t.priority,t.project_id,t.assignee_id,t.due_date,t.version,t.deleted_at,p.name project_name,p.color project_color,m.name assignee_name,m.initials,m.color assignee_color FROM tasks t JOIN projects p ON p.id=t.project_id LEFT JOIN members m ON m.id=t.assignee_id`;
 export async function tokenHash(token:string){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));return Array.from(new Uint8Array(bytes),v=>v.toString(16).padStart(2,'0')).join('');}
 export async function body(req:Request):Promise<unknown>{
@@ -24,7 +24,7 @@ export function operationKey(req:Request,scope:string){const key=req.headers.get
 function replay(row:{request_payload:string;create_result:string},payload:string){if(row.request_payload!==payload)throw new HttpError(409,'Ключ уже использован с другими данными');return json(JSON.parse(row.create_result),201);}
 function parse<T>(schema:z.ZodType<T>,data:unknown):T{const r=schema.safeParse(data);if(!r.success)throw new HttpError(400,'Проверьте данные запроса');return r.data;}
 export async function flowApi(req:Request,db:SqlDB,actor:Actor|null,mode:'local'|'chatgpt'){
- try{return await handle(req,db,actor,mode);}catch(error){if(error instanceof HttpError)return json({message:error.message},error.status);return json({message:'Сервис временно недоступен. Повторите запрос.'},503);}
+ try{return await handle(req,db,actor,mode);}catch(error){if(String(error).includes('flow_access_denied'))return json({message:'Право на изменение отозвано'},403);if(String(error).includes('flow_assignee_missing'))return json({message:'Исполнитель больше не состоит в команде'},409);if(error instanceof HttpError)return json({message:error.message},error.status);return json({message:'Сервис временно недоступен. Повторите запрос.'},503);}
 }
 async function handle(req:Request,db:SqlDB,actor:Actor|null,mode:string){
  const url=new URL(req.url),path=url.pathname,method=req.method;
@@ -89,12 +89,12 @@ async function handle(req:Request,db:SqlDB,actor:Actor|null,mode:string){
  if(memberMatch&&['PATCH','DELETE'].includes(method)){
   if(role!=='owner')throw new HttpError(403,'Права меняет только владелец');const target=Number(memberMatch[1]);const member=await q('SELECT role FROM memberships WHERE workspace_id=? AND member_id=?',workspace,target).first<{role:string}>();
   if(!member)throw new HttpError(404,'Участник не найден');if(member.role==='owner')throw new HttpError(400,'Нельзя удалить или понизить владельца');
-  if(method==='DELETE'){await db.batch([q('UPDATE tasks SET assignee_id=NULL,version=version+1,changed_by=? WHERE assignee_id=? AND project_id IN (SELECT id FROM projects WHERE workspace_id=?)',actor.id,target,workspace),q('DELETE FROM memberships WHERE workspace_id=? AND member_id=?',workspace,target),event('удалил(а) участника из пространства')]);return new Response(null,{status:204});}
-  const input=parse(z.object({role:accessRole}).strict(),await body(req));await db.batch([q('UPDATE memberships SET role=? WHERE workspace_id=? AND member_id=?',input.role,workspace,target),event('изменил(а) права участника')]);return json({id:target,role:input.role});
+  if(method==='DELETE'){const [,removed]=await db.batch([q("UPDATE tasks SET assignee_id=NULL,version=version+1,changed_by=? WHERE assignee_id=? AND project_id IN (SELECT id FROM projects WHERE workspace_id=?) AND EXISTS(SELECT 1 FROM memberships WHERE workspace_id=? AND member_id=? AND role='owner')",actor.id,target,workspace,workspace,actor.id),q("DELETE FROM memberships WHERE workspace_id=? AND member_id=? AND role!='owner' AND EXISTS(SELECT 1 FROM memberships WHERE workspace_id=? AND member_id=? AND role='owner')",workspace,target,workspace,actor.id),event('удалил(а) участника из пространства',true)]);if(!removed.meta.changes)throw new HttpError(403,'Право на изменение отозвано');return new Response(null,{status:204});}
+  const input=parse(z.object({role:accessRole}).strict(),await body(req));const [changed]=await db.batch([q("UPDATE memberships SET role=? WHERE workspace_id=? AND member_id=? AND EXISTS(SELECT 1 FROM memberships WHERE workspace_id=? AND member_id=? AND role='owner')",input.role,workspace,target,workspace,actor.id),event('изменил(а) права участника',true)]);if(!changed.meta.changes)throw new HttpError(403,'Право на изменение отозвано');return json({id:target,role:input.role});
  }
  if(path==='/api/projects'&&method==='POST'){
   const {name}=parse(nameSchema,await body(req));const count=await q('SELECT COUNT(*) n FROM projects WHERE workspace_id=?',workspace).first<{n:number}>();if((count?.n||0)>=30)throw new HttpError(429,'В демо до 30 проектов на пространство');
-  const [result]=await db.batch([q("INSERT INTO projects(name,client,color,progress,due_date,workspace_id) VALUES (?,'Команда','#7c64e3',0,?,?)",name,new Date(Date.now()+7*86400000).toISOString().slice(0,10),workspace),event(`создал(а) проект «${name}»`)]);return json({id:result.meta.last_row_id,name},201);
+  const [result]=await db.batch([q("INSERT INTO projects(name,client,color,progress,due_date,workspace_id) SELECT ?,'Команда','#7c64e3',0,?,? WHERE EXISTS(SELECT 1 FROM memberships WHERE workspace_id=? AND member_id=? AND role IN ('owner','editor'))",name,new Date(Date.now()+7*86400000).toISOString().slice(0,10),workspace,workspace,actor.id),event(`создал(а) проект «${name}»`,true)]);if(!result.meta.changes)throw new HttpError(403,'Право на изменение отозвано');return json({id:result.meta.last_row_id,name},201);
  }
  const match=path.match(/^\/api\/tasks\/(\d+)(\/status|\/restore)?$/),id=Number(match?.[1]);
  if(path==='/api/tasks'&&method==='POST'){
