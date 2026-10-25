@@ -37,8 +37,9 @@ const seedSql = `
 export function createDatabase(filename = resolve('data', 'flowboard.db')) {
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true });
   const db = new DatabaseSync(filename);
+  try{
   db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
-  db.exec('BEGIN IMMEDIATE');try{
+  db.exec('BEGIN IMMEDIATE');
   db.exec(`
     CREATE TABLE IF NOT EXISTS members (
       id INTEGER PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL,
