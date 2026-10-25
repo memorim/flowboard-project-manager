@@ -34,5 +34,15 @@
       "status": 400,
       "body": {}
     }
-  ]
+  ],
+  "accountSetup": {
+    "email": "contract@example.test",
+    "password": "Contract-fixture-password-2026",
+    "memberId": 4
+  },
+  "loginPath": "/api/auth/login",
+  "login": {
+    "email": "contract@example.test",
+    "password": "Contract-fixture-password-2026"
+  }
 }

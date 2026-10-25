@@ -1,3 +1,5 @@
+> Historical notes from an earlier revision. For the current standalone authentication and migration procedure, see [Session model](SESSION_AUTH.md). Demo actor headers require explicit local demo mode.
+
 # Пример Node API
 
 API ниже предназначен для доверенного локального запуска. X-Demo-Actor — выбор демонстрационного участника, не аутентификация. Размещённая версия игнорирует этот заголовок и требует входа через ChatGPT.

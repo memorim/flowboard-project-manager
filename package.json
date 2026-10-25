@@ -18,7 +18,12 @@
     "backup": "node --import tsx server/backup.ts",
     "test:upgrade": "node tests/check-upgrade.mjs",
     "backup:status": "node --import tsx server/backup-status.ts",
-    "test:contract": "node --import tsx tests/check-contract.mjs"
+    "test:contract": "node --import tsx tests/check-contract.mjs",
+    "account:create": "tsx --env-file-if-exists=.account.env server/create-account.ts",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "test:e2e:auth": "playwright test --config=playwright.auth.config.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -29,6 +34,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@playwright/test": "^1.64.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -38,9 +44,13 @@
     "@types/supertest": "^6.0.3",
     "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^9.2.5",
+    "eslint": "10.13.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
     "supertest": "^7.3.1",
     "tsx": "^4.23.15",
     "typescript": "~5.7.3",
+    "typescript-eslint": "8.72.0",
     "vite": "^6.4.5"
   },
   "packageManager": "pnpm@11.7.0",

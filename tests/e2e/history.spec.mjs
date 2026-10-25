@@ -1,8 +1,48 @@
-import {test,expect} from '../fixtures.mjs';
-async function nav(page,name){if(page.viewportSize().width<=760&&await page.getByRole('button',{name:'Переключить меню'}).getAttribute('aria-expanded')!=='true')await page.getByRole('button',{name:'Переключить меню'}).click();await page.getByRole('navigation').getByRole('button',{name:name==='Задачи'?/^Задачи/:name,exact:name!=='Задачи'}).click();}
-test('edit history, trash and restore retain the same task',async({page})=>{
- await page.goto('/');await page.getByRole('button',{name:'Новая задача',exact:true}).click();const title='Restore synthetic '+Date.now();let d=page.getByRole('dialog');await d.getByLabel('Название',{exact:true}).fill(title);await d.getByRole('button',{name:'Создать задачу',exact:true}).click();await expect(d).toHaveCount(0);await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Действия: '+title,exact:true}).click();await page.getByRole('button',{name:'История изменений',exact:true}).click();d=page.getByRole('dialog');await expect(d.getByRole('heading',{name:'Создание · версия 1',exact:true})).toBeVisible();await d.getByRole('button',{name:'Закрыть историю',exact:true}).click();
- page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Действия: '+title,exact:true}).click();await page.getByRole('button',{name:'Удалить',exact:true}).click();await expect(page.getByRole('heading',{name:title,exact:true})).toHaveCount(0);await nav(page,'Корзина');await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();await page.getByRole('button',{name:'Восстановить задачу «'+title+'»',exact:true}).click();await expect(page.getByRole('heading',{name:title,exact:true})).toHaveCount(0);
- await page.getByRole('textbox',{name:'Поиск задач'}).fill(title);await nav(page,'Задачи');await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();await page.getByRole('button',{name:'Действия: '+title,exact:true}).click();await page.getByRole('button',{name:'История изменений',exact:true}).click();await expect(page.getByRole('dialog').getByRole('heading',{name:'Восстановление · версия 3',exact:true})).toBeVisible();
+import { test, expect } from '../fixtures.mjs';
+async function nav(page, name) {
+  if (
+    page.viewportSize().width <= 760 &&
+    (await page.getByRole('button', { name: 'Переключить меню' }).getAttribute('aria-expanded')) !==
+      'true'
+  )
+    await page.getByRole('button', { name: 'Переключить меню' }).click();
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: name === 'Задачи' ? /^Задачи/ : name, exact: name !== 'Задачи' })
+    .click();
+}
+test('edit history, trash and restore retain the same task', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Новая задача', exact: true }).click();
+  const title = 'Restore synthetic ' + Date.now();
+  let d = page.getByRole('dialog');
+  await d.getByLabel('Название', { exact: true }).fill(title);
+  await d.getByRole('button', { name: 'Создать задачу', exact: true }).click();
+  await expect(d).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Действия: ' + title, exact: true }).click();
+  await page.getByRole('button', { name: 'История изменений', exact: true }).click();
+  d = page.getByRole('dialog');
+  await expect(d.getByRole('heading', { name: 'Создание · версия 1', exact: true })).toBeVisible();
+  await d.getByRole('button', { name: 'Закрыть историю', exact: true }).click();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Действия: ' + title, exact: true }).click();
+  await page.getByRole('button', { name: 'Удалить', exact: true }).click();
+  await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
+  await nav(page, 'Корзина');
+  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Восстановить задачу «' + title + '»', exact: true })
+    .click();
+  await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'Поиск задач' }).fill(title);
+  await nav(page, 'Задачи');
+  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Действия: ' + title, exact: true }).click();
+  await page.getByRole('button', { name: 'История изменений', exact: true }).click();
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByRole('heading', { name: 'Восстановление · версия 3', exact: true }),
+  ).toBeVisible();
 });
