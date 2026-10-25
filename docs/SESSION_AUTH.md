@@ -47,3 +47,8 @@ pnpm test:e2e:auth
 ```
 
 `real-sessions.test.ts` covers session rotation/revocation/expiry, password/token storage, private isolation, viewer/editor/owner boundaries, a conflicting edit and revocation. `session-auth.test.ts` reproduces the old header impersonation problem. The browser auth fixture uses isolated temporary accounts and checks desktop/mobile login, a private task, persistence and logout.
+
+
+## API module boundaries
+
+`src/flow-api.ts` applies the origin check, resolves workspace membership and mutation limits, then dispatches to three focused modules. `flow-reads.ts` contains scoped reads/history/export, `flow-workspaces.ts` contains workspace/invitation/member/project lifecycle, and `flow-tasks.ts` contains task creation, CAS edits/status/deletion/restore and reference checks. `flow-http.ts` retains the typed SQL adapter contract, bounded JSON parsing and controlled errors. The same API module entry point is used by local SQLite and the hosted D1 extract; database guards still enforce write-time membership, assignee and version invariants. The refactor preserves HTTP shapes and tests instead of adding a generic service/repository framework.

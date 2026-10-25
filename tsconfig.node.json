@@ -14,7 +14,7 @@
     "server/**/*.ts",
     "tests/**/*.ts",
     "src/task-schema.ts",
-    "src/flow-api.ts",
+    "src/flow-*.ts",
     "src/observability.ts"
   ]
 }
