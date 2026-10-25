@@ -17,6 +17,14 @@ export function createApp(
   });
   const app = express(),
     sql = sqliteAdapter(db);
+  const revision = /^[a-f0-9]{40}$/i.test(process.env.APP_REVISION || '')
+    ? process.env.APP_REVISION
+    : 'local-unversioned';
+  app.use('/api/health', (_req, res, next) => {
+    res.set('X-App-Revision', revision);
+    next();
+  });
+
   app.use(requestLog(log));
   app.use(express.text({ type: 'application/json', limit: '16kb' }));
   installSessionAuth(app, db, settings);

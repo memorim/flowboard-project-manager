@@ -23,7 +23,8 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test:e2e:auth": "playwright test --config=playwright.auth.config.mjs"
+    "test:e2e:auth": "playwright test --config=playwright.auth.config.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
