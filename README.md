@@ -1,68 +1,56 @@
-# Flowboard — Project Manager
+# Flowboard — управление проектами и задачами
 
-Coordinate projects and tasks without silently overwriting another participant’s changes.
+Командная доска с рабочими пространствами, ролями и защитой от незаметной потери изменений при одновременном редактировании.
 
-[Browser-only demo](https://memorim.github.io/flowboard-project-manager/) · [Hosted sandbox](https://memorim-flowboard-live.amusedcorgi34.chatgpt.site)
+[Демо в браузере](https://memorim.github.io/flowboard-project-manager/) · [Серверное демо](https://memorim-flowboard-live.amusedcorgi34.chatgpt.site)
 
-The browser-only build stores data locally. The hosted sandbox is a separate revision/deployment; new local audit guarantees are described below.
+![Компьютерная версия](docs/desktop.png)
 
-![Current local desktop interface](docs/desktop.png)
+<img src="docs/mobile.png" width="320" alt="Мобильная версия">
 
-<img src="docs/mobile.png" width="320" alt="Current local mobile interface">
+[Короткая демонстрация](docs/demo.gif)
 
-Screenshots were captured from the running local application with its bundled fixture data.
+## Возможности
 
-[Earlier sandbox interaction recording](docs/demo.gif)
+- Канбан, редактор задач, поиск, фильтры, календарь и прогресс по фактическим задачам.
+- Приватные пространства, роли владельца, редактора и наблюдателя, одноразовые приглашения и экспорт.
+- Проверка версий, корзина, восстановление, история полей и журнал действий.
 
-## Implemented
+## Стек и устройство
 
-- Kanban, task editor, filters, calendar and progress calculated from tasks.
-- Private workspaces, owner/editor/viewer roles, expiring one-use invitations and owner export.
-- Version-checked updates, a recycle bin, restoration, task history and activity records.
+React, TypeScript, Vite, Express, Zod и встроенный SQLite в Node.js. Размещённый вариант использует отдельный адаптер D1.
 
-## Stack and architecture
+## Ключевые решения
 
-React, TypeScript and Vite; Express, Zod and built-in Node SQLite.
+- `src/flow-api.ts` содержит общую бизнес-логику API. Изменения используют `WHERE id=? AND version=?`; устаревшая запись получает HTTP 409, а интерфейс сохраняет черновик.
+- `server/access-constraints.sql` повторно проверяет членство и назначения непосредственно при записи. Отзыв роли между проверкой запроса и коммитом блокирует позднее изменение.
+- Изменение задачи, история и активность фиксируются одной транзакцией. Ошибка откатывает весь пакет.
+- Приглашение содержит 32 случайных байта; в БД хранится хеш. Условное принятие выдаёт одно членство; использованный или просроченный токен получает 410.
+- Локальный сервер проверяет серверные сессии и игнорирует присланный клиентом заголовок выбора участника. Новые аккаунты читают общее пространство и могут создавать собственные.
 
-```mermaid
-flowchart LR
-React --> API[Shared flowApi]
-Identity[Verified identity adapter] --> API
-API --> Batch[Transactional batch and version check]
-Batch --> DB[(SQLite locally / D1 hosted)]
-```
+## Локальный запуск
 
-## Technical mechanisms and security
-
-- `src/flow-api.ts` is the business/API implementation shared with the local SQLite adapter. `batch` is transactional; task updates use `WHERE id=? AND version=?`. A stale write returns HTTP 409, and the UI retains the draft.
-- `server/access-constraints.sql` checks current membership inside task mutations, validates assignees and requires current ownership when creating invitations. An editor revoked after request validation cannot commit a late write.
-- Membership/project changes use SQL conditions that recheck current privileges. Task changes, history triggers and activity are committed together; failures roll the batch back.
-- Invitation tokens contain 32 random bytes; only hashes are stored. Conditional acceptance grants one membership, and a consumed/expired invitation returns 410.
-- Standalone accounts use verified server sessions; client-selected actor headers are ignored. New accounts can create private workspaces and have read-only access to the sample workspace. The separate browser/native sandboxes retain their documented collaborative behavior.
-
-## Local setup
-
-Node.js 24.18.0 and pnpm 11.7.0 (see version files).
+Node.js 24.18.0 и pnpm 11.7.0; версии закреплены в файлах проекта.
 
 ```bash
 npm install --global pnpm@11.7.0
 pnpm install --frozen-lockfile
-# Provision an account using docs/SESSION_AUTH.md to edit private workspaces.
+# Для редактирования создайте аккаунт по инструкции docs/SESSION_AUTH.md.
 pnpm build
 pnpm start
 ```
 
-Open `http://localhost:4100`. For live UI development use `pnpm dev` where available. The API binds to `127.0.0.1` by default.
+Откройте `http://localhost:4100`. Сервер по умолчанию слушает 127.0.0.1. Для разработки доступен `pnpm dev`.
 
-## Configuration
+## Настройки
 
-Configure process environment variables using [.env.example](.env.example). `pnpm start` uses the process environment; it does not implicitly load that file. To load a copied `.env` explicitly, run `node --env-file=.env --import tsx server/index.ts`.
+Параметры перечислены в [.env.example](.env.example). `pnpm start` использует окружение процесса и не загружает файл автоматически. После копирования `.env` его можно загрузить явно: `node --env-file=.env --import tsx server/index.ts`.
 
-## Database and upgrades
+## Данные и обновления
 
-SQLite is stored at `data/flowboard.db`. Initialization creates/migrates the schema; sample rows are included for local use. Back up the database before upgrades. Do not remove the database as a migration step.
+SQLite хранится в `data/flowboard.db`. Инициализация создаёт или обновляет схему. Перед обновлением сохраните резервную копию; удалять БД вместо миграции не нужно.
 
-## Verification
+## Проверки
 
 ```bash
 pnpm lint
@@ -78,25 +66,18 @@ pnpm test:e2e:auth
 pnpm audit --audit-level=high
 ```
 
-`tests/audit.test.ts`: revocation between validation and commit, and competing invitation acceptance. Existing API/E2E tests cover viewer restrictions, workspace isolation, stale versions, draft preservation, restoration and backup recovery.
+API/E2E-проверки покрывают изоляцию пространств, ограничения наблюдателя, конкурирующее принятие приглашения, отзыв роли между валидацией и записью, конфликт версий, сохранение черновика, восстановление и резервные копии.
 
-CI installs locked dependencies and runs the configured checks; documentation checks also validate local links/images. A passing scanner only reports known advisories at the time of the run.
+CI устанавливает зависимости по зафиксированным версиям и запускает настроенные проверки. Отдельная проверка документации находит неверные локальные ссылки и изображения. Проверка уязвимостей учитывает известные проблемы на момент запуска.
 
-[Account provisioning, trust modes and migration](docs/SESSION_AUTH.md). The standalone server starts read-only until you log in; no sample passwords are provisioned automatically.
+## Ограничения
 
-## Limits and next steps
+- Аккаунты локальной серверной версии создаёт администратор; самостоятельная регистрация, сброс пароля и MFA не реализованы. Пароли обрабатываются scrypt, непрозрачные cookie-сессии можно отозвать.
+- Режим выбора демонстрационного участника требует явной настройки и разрешён только вне production на loopback. См. [модель сессий](docs/SESSION_AUTH.md).
+- Размещённый вариант с входом в аккаунт и D1 выпускается отдельно от локального Node-сервера. Общее пространство намеренно доступно для совместных изменений.
+- Квоты и лимиты запросов предназначены для небольшого приложения; распределённого ограничения нагрузки нет. SQLite допускает одного писателя.
+- Нет рассылки приглашений по почте, платежей и интеграции с каталогом организации.
 
-- Standalone authentication uses administrator-provisioned accounts, salted scrypt and opaque revocable cookie sessions. Demo identity requires explicit non-production loopback configuration. See [session setup and migration](docs/SESSION_AUTH.md).
-- The native hosted version uses platform-managed sign-in and D1. Its currently deployed revision is separate; repository security fixes are not a claim that a new Site version has been deployed.
-- The public sandbox is intentionally collaborative. Request limits and workspace quotas are small per-demo controls, not distributed admission control.
-- SQLite is a single-writer store. No email invitation delivery, billing or organization directory integration is implemented.
+## Документация
 
-## Further documentation
-
-[Audit findings and follow-up](docs/AUDIT_2026_10.md) · [Technical reference](docs/TECHNICAL.md) · [Change history](CHANGELOG.md)
-
-[API request/response example](docs/API_EXAMPLE.md)
-
-[Scheduled backups and recovery](docs/SCHEDULED_BACKUPS.md) · [Hosted adapter](hosting/README.md)
-
-[Revision and deployment checks](docs/DEPLOYMENT_CHECKS.md) — read-only `pnpm smoke` verifies a running Node API and an optional expected source SHA.
+[Результаты аудита](docs/AUDIT_2026_10.md) · [Техническая документация](docs/TECHNICAL.md) · [Пример запроса и ответа](docs/API_EXAMPLE.md) · [Настройка сессий](docs/SESSION_AUTH.md) · [Резервные копии и восстановление](docs/SCHEDULED_BACKUPS.md) · [Проверка версии размещения](docs/DEPLOYMENT_CHECKS.md) · [Адаптер размещённой версии](hosting/README.md) · [История изменений](CHANGELOG.md)
