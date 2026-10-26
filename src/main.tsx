@@ -16,7 +16,7 @@ createRoot(document.getElementById('root')!).render(
           textAlign: 'center',
         }}
       >
-        Учебное демо ·{' '}
+        Интерактивная демонстрация ·{' '}
         {import.meta.env.VITE_DEMO_MODE === 'true'
           ? 'Данные сохраняются только в этом браузере'
           : 'Локальный сервер и демонстрационные данные'}{' '}
