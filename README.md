@@ -1,14 +1,13 @@
-# Flowboard — управление проектами и задачами
+# Flowboard - управление проектами и задачами
 
 Командная доска с рабочими пространствами, ролями и защитой от незаметной потери изменений при одновременном редактировании.
 
-[Демо в браузере](https://memorim.github.io/flowboard-project-manager/) · [Серверное демо](https://memorim-flowboard-live.amusedcorgi34.chatgpt.site)
+[Открыть проект](https://memorim.github.io/flowboard-project-manager/) · [Серверная версия](https://memorim-flowboard-live.amusedcorgi34.chatgpt.site/)
+
 
 ![Компьютерная версия](docs/desktop.png)
 
 <img src="docs/mobile.png" width="320" alt="Мобильная версия">
-
-[Короткая демонстрация](docs/demo.gif)
 
 ## Возможности
 
