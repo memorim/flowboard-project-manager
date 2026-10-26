@@ -403,7 +403,7 @@ export default function App() {
     }
   };
   useEffect(() => {
-    setSidebar(window.innerWidth > 760);
+    setSidebar(window.innerWidth / Number(getComputedStyle(document.documentElement).zoom) > 760);
     setInviteToken(new URLSearchParams(window.location.hash.slice(1)).get('invite') || '');
     setReturnTo(window.location.pathname + window.location.search + window.location.hash);
   }, []);
@@ -416,7 +416,8 @@ export default function App() {
   const go = (v: typeof view) => {
     if (v !== view) setTaskOffset(0);
     setView(v);
-    if (window.innerWidth <= 760) setSidebar(false);
+    if (window.innerWidth / Number(getComputedStyle(document.documentElement).zoom) <= 760)
+      setSidebar(false);
   };
   const visible = useMemo(
     () =>
