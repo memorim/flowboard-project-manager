@@ -16,7 +16,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: calc(100vh / var(--page-zoom, 1));
 }
 button,
 input,
@@ -30,7 +30,7 @@ button {
 .app-shell {
   display: grid;
   grid-template-columns: 242px 1fr;
-  min-height: 100vh;
+  min-height: calc(100vh / var(--page-zoom, 1));
   transition: 0.25s ease;
 }
 .app-shell.sidebar-hidden {
@@ -39,7 +39,7 @@ button {
 .sidebar {
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: calc(100vh / var(--page-zoom, 1));
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -755,7 +755,7 @@ main {
   display: grid;
   place-items: center;
   align-content: center;
-  min-height: calc(100vh - 72px);
+  min-height: calc(calc(100vh / var(--page-zoom, 1)) - 72px);
   color: var(--muted);
   font-size: 11px;
 }
@@ -772,7 +772,7 @@ main {
     transform: rotate(360deg);
   }
 }
-@media (max-width: 1100px) {
+@media (max-width: 1100px) and (max-width: 800px), (min-width: 801px) and (max-width: 1375px) {
   .metrics {
     grid-template-columns: 1fr 1fr;
   }
@@ -783,7 +783,7 @@ main {
     grid-template-columns: repeat(4, 260px);
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 760px), (min-width: 801px) and (max-width: 950px) {
   .app-shell,
   .app-shell.sidebar-hidden {
     display: block;
@@ -917,7 +917,7 @@ main {
   line-height: 1.6;
 }
 .task-dialog {
-  max-height: 90vh;
+  max-height: calc(90vh / var(--page-zoom, 1));
   overflow: auto;
   color: var(--ink);
   border: 1px solid var(--line);
@@ -958,7 +958,7 @@ button:disabled {
 .task-card[draggable='true'] {
   cursor: grab;
 }
-@media (max-width: 760px) {
+@media (max-width: 760px), (min-width: 801px) and (max-width: 950px) {
   .topbar .primary {
     display: flex;
     font-size: 10px;
@@ -1076,7 +1076,7 @@ button:disabled {
 .invite-banner a {
   color: #663b17;
 }
-@media (max-width: 760px) {
+@media (max-width: 760px), (min-width: 801px) and (max-width: 950px) {
   .workspace-bar {
     padding: 14px 18px;
     gap: 8px;
@@ -1185,4 +1185,12 @@ input:focus-visible,
 textarea:focus-visible {
   outline: 3px solid #b54b27;
   outline-offset: 3px;
+}
+
+/* Whole-page desktop zoom; viewport units and breakpoints use the same effective size. */
+@media screen and (min-width: 801px) {
+  html {
+    --page-zoom: 1.25;
+    zoom: var(--page-zoom);
+  }
 }

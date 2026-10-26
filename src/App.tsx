@@ -403,7 +403,9 @@ export default function App() {
     }
   };
   useEffect(() => {
-    setSidebar(window.innerWidth > 760);
+    setSidebar(
+      !window.matchMedia('(max-width:760px), (min-width:801px) and (max-width:950px)').matches,
+    );
     setInviteToken(new URLSearchParams(window.location.hash.slice(1)).get('invite') || '');
     setReturnTo(window.location.pathname + window.location.search + window.location.hash);
   }, []);
@@ -416,7 +418,8 @@ export default function App() {
   const go = (v: typeof view) => {
     if (v !== view) setTaskOffset(0);
     setView(v);
-    if (window.innerWidth <= 760) setSidebar(false);
+    if (window.matchMedia('(max-width:760px), (min-width:801px) and (max-width:950px)').matches)
+      setSidebar(false);
   };
   const visible = useMemo(
     () =>
