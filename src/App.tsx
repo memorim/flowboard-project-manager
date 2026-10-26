@@ -529,7 +529,7 @@ export default function App() {
               {session.user?.name || 'Гостевой просмотр'}
               <br />
               <a href={session.user ? '/signout-with-chatgpt?return_to=/' : signIn} target="_top">
-                {session.user ? 'Выйти' : 'Войти через ChatGPT'}
+                {session.user ? 'Выйти' : 'Войти в аккаунт'}
               </a>
             </p>
           ) : session.mode === 'authenticated' ? (

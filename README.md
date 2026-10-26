@@ -87,7 +87,7 @@ CI installs locked dependencies and runs the configured checks; documentation ch
 ## Limits and next steps
 
 - Standalone authentication uses administrator-provisioned accounts, salted scrypt and opaque revocable cookie sessions. Demo identity requires explicit non-production loopback configuration. See [session setup and migration](docs/SESSION_AUTH.md).
-- The native hosted version uses ChatGPT identity and D1. Its currently deployed revision is separate; repository security fixes are not a claim that a new Site version has been deployed.
+- The native hosted version uses platform-managed sign-in and D1. Its currently deployed revision is separate; repository security fixes are not a claim that a new Site version has been deployed.
 - The public sandbox is intentionally collaborative. Request limits and workspace quotas are small per-demo controls, not distributed admission control.
 - SQLite is a single-writer store. No email invitation delivery, billing or organization directory integration is implemented.
 

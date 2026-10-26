@@ -1,6 +1,6 @@
 # Standalone identity and session model
 
-The standalone Node server defaults to `FLOW_AUTH_MODE=session`. Client-supplied `X-Demo-Actor` values are ignored in this mode. The native Site keeps its separate ChatGPT identity adapter; this change does not deploy or replace that adapter.
+The standalone Node server defaults to `FLOW_AUTH_MODE=session`. Client-supplied `X-Demo-Actor` values are ignored in this mode. The native Site keeps its separate platform identity adapter; this change does not deploy or replace that adapter.
 
 ## Create an account
 
