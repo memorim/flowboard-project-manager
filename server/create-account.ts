@@ -1,8 +1,12 @@
 import { resolve } from 'node:path';
 import { createDatabase } from './db.js';
 import { createAccount } from './auth.js';
+import { asStore } from './sqlite-adapter.js';
+import { createPostgresStore } from './postgres.js';
 
-const db = createDatabase(resolve('data', 'flowboard.db'));
+const db = process.env.DATABASE_URL
+  ? await createPostgresStore(process.env.DATABASE_URL)
+  : asStore(createDatabase(resolve('data', 'flowboard.db')));
 try {
   const account = await createAccount(db, {
     email: process.env.FLOW_USER_EMAIL || '',
@@ -19,5 +23,5 @@ try {
   );
   process.exitCode = 1;
 } finally {
-  db.close();
+  await db.close();
 }

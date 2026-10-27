@@ -10,6 +10,9 @@ export interface Statement {
 }
 // Native D1 subset, reused by the local SQLite adapter so authorization has one implementation.
 export interface SqlDB {
+  dialect?: 'sqlite' | 'postgres';
+  limits?: { changes: number; workspaces: number; projects: number; invitations: number };
+  transaction?<T>(operation: () => Promise<T>): Promise<T>;
   prepare(sql: string): Statement;
   batch(statements: Statement[]): Promise<Result[]>;
 }

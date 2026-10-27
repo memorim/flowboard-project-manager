@@ -49,3 +49,71 @@ test('real session login, private task persistence and logout work without actor
     ).status(),
   ).toBe(404);
 });
+
+test('registration, email proof, password recovery and MFA settings work in the browser', async ({
+  page,
+  request,
+}) => {
+  const password = 'Browser-signup-password-2026';
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  let dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
+  await dialog.getByLabel('Ваше имя').fill('Browser member');
+  await dialog.getByLabel('Электронная почта').fill('browser@example.test');
+  await dialog.getByLabel('Пароль', { exact: true }).fill(password);
+  await dialog.getByRole('button', { name: 'Зарегистрироваться', exact: true }).click();
+  await expect(dialog.getByRole('status')).toContainText('письмо');
+  let messages = await (await request.get('/__test/messages')).json();
+  const link = messages.at(-1).text.match(/http:\/\/127.0.0.1:4141\/\S+/)[0];
+  await page.goto(link);
+  dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Пароль, выбранный при регистрации').fill(password);
+  await dialog.getByRole('button', { name: 'Подтвердить почту', exact: true }).click();
+  await expect(dialog.getByRole('heading', { name: 'Вход в Flowboard' })).toBeVisible();
+  expect(page.url()).not.toContain('token=');
+  await dialog.getByLabel('Электронная почта').fill('browser@example.test');
+  await dialog.getByLabel('Пароль', { exact: true }).fill(password);
+  await dialog.getByRole('button', { name: 'Войти в аккаунт' }).click();
+  await expect(dialog).toHaveCount(0);
+  if (page.viewportSize().width <= 760)
+    await page.getByRole('button', { name: 'Переключить меню' }).click();
+  await page.getByRole('button', { name: 'Безопасность аккаунта', exact: true }).click();
+  dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Подтвердите пароль').fill(password);
+  await dialog.getByRole('button', { name: 'Настроить защиту' }).click();
+  await expect(
+    dialog.getByRole('img', { name: 'QR-код для настройки аутентификатора' }),
+  ).toBeVisible();
+  const secret = await dialog.getByLabel('Ключ настройки').inputValue();
+  const { totp } = await import('../../server/account-crypto.ts');
+  await dialog
+    .getByLabel('Код из приложения', { exact: true })
+    .fill(totp(secret, Math.floor(Date.now() / 30000)));
+  await dialog.getByRole('button', { name: 'Включить защиту', exact: true }).click();
+  await expect(dialog.getByLabel('Резервные коды', { exact: true })).toBeVisible();
+  const codes = (await dialog.getByLabel('Резервные коды', { exact: true }).inputValue()).split(
+    '\n',
+  );
+  expect(codes).toHaveLength(10);
+  await dialog.getByRole('button', { name: 'Закрыть настройки аккаунта' }).click();
+  await page.getByRole('button', { name: 'Выйти', exact: true }).click();
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Забыли пароль?' }).click();
+  await dialog.getByLabel('Электронная почта').fill('browser@example.test');
+  await dialog.getByRole('button', { name: 'Отправить письмо', exact: true }).click();
+  await expect(dialog.getByRole('status')).toContainText('письмо');
+  messages = await (await request.get('/__test/messages')).json();
+  await page.goto(messages.at(-1).text.match(/http:\/\/127.0.0.1:4141\/\S+/)[0]);
+  dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Пароль', { exact: true }).fill(password + '-new');
+  await dialog.getByRole('button', { name: 'Обновить пароль', exact: true }).click();
+  await dialog.getByLabel('Электронная почта').fill('browser@example.test');
+  await dialog.getByLabel('Пароль', { exact: true }).fill(password + '-new');
+  await dialog.getByRole('button', { name: 'Войти в аккаунт' }).click();
+  await expect(dialog.getByRole('heading', { name: 'Подтвердить вход' })).toBeVisible();
+  await dialog.getByLabel('Код из приложения или резервный код').fill(codes[0]);
+  await dialog.getByRole('button', { name: 'Подтвердить', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+});

@@ -1,54 +1,45 @@
-# Standalone identity and session model
+# Аккаунты, сессии и MFA
 
-The standalone Node server defaults to `FLOW_AUTH_MODE=session`. Client-supplied `X-Demo-Actor` values are ignored in this mode. The native Site keeps its separate platform identity adapter; this change does not deploy or replace that adapter.
+Полный Node-сервер использует `FLOW_AUTH_MODE=session`; заголовок `X-Demo-Actor` не даёт прав. SQLite и PostgreSQL используют одни маршруты аккаунтов.
 
-## Create an account
+## Регистрация и восстановление
 
-Install dependencies and back up an existing database. Copy `.account.env.example` to `.account.env`, then edit it locally with your email, display name and a unique 15–128 character password. The local credential file is ignored by Git.
+Настройте `FLOW_PUBLIC_ORIGIN`, `FLOW_APP_KEY` и SMTP. Интерфейс показывает регистрацию и восстановление только при наличии этих настроек. `FLOW_REGISTRATION_ENABLED=false` закрывает регистрацию.
 
-```bash
-# Linux/macOS
-cp .account.env.example .account.env
-# Windows PowerShell: Copy-Item .account.env.example .account.env
-# Edit .account.env before running the next command.
-pnpm account:create
-```
+1. `POST /api/auth/register {name,email,password}`: пароль 15–128 символов, аккаунт ожидает подтверждения. Повтор адреса возвращает общий ответ, не раскрывая существование аккаунта.
+2. В письме ссылка `?auth=verify&token=...`, действующая 24 часа. Подтверждение требует также пароль, выбранный при регистрации: чужое письмо не позволяет принять чужой пароль.
+3. `POST /api/auth/forgot-password {email}` ставит одноразовую ссылку восстановления на 30 минут. `POST /api/auth/reset-password {token,password}` меняет пароль и отзывает сессии. MFA сохраняется.
 
-The CLI prints the created member ID and never the password/hash. Delete the local credential file when provisioning is complete. There is no open account-registration endpoint.
+В базе находятся хеши ссылок и версия учётных данных. Два конкурентных запроса сброса не могут использовать одну ссылку дважды. Очередь писем шифруется ключом приложения; держите его вместе с резервной копией в защищённом хранилище.
 
-To preserve an existing member's workspace ownership, set `FLOW_USER_MEMBER_ID` to that member's ID in the local credential file. This is an administrator-only database operation; the browser cannot claim an existing member. Existing names, tasks and memberships are retained. A duplicate account/email fails atomically.
+### Административное создание
 
-## Login and logout
-
-`POST /api/auth/login` accepts `{email,password}` as JSON. The UI provides a native accessible dialog. Successful login rotates the current cookie and stores only a SHA-256 hash of a random 32-byte session token. Sessions expire after 24 hours and logout deletes the current server record. Account passwords use salted scrypt with N=32768, r=8, p=3.
-
-Cookie properties are HttpOnly, SameSite=Strict and Path=/. Secure is enabled for an HTTPS public origin or production configuration. The browser does not persist passwords or tokens in localStorage.
-
-All unsafe API requests reject cross-site fetches and mismatched Origin. JSON/body lengths, login attempts, KDF concurrency and the rate-limit map are bounded. Limits are per process; place a shared admission/rate limiter in front of multiple replicas. Password reset, MFA, session management across devices and verified email delivery are outside this implementation.
-
-## Production configuration
-
-Configure `NODE_ENV=production` and an explicit HTTPS `FLOW_PUBLIC_ORIGIN`. Terminate TLS at a controlled reverse proxy and preserve the public origin. Trust in forwarded headers is not enabled automatically. The server refuses production startup without an HTTPS public origin; deployment still requires separate operational verification.
-
-`FLOW_AUTH_MODE=demo` preserves the old fixture-identity workflow only when explicitly selected on a non-production loopback server. Both the configured bind host and incoming peer/host are checked. It is not an alternative to account authentication on a public backend.
-
-New standalone accounts have read-only access to the public sample workspace and can create private workspaces. Demo/native adapters retain their explicit collaborative sandbox behavior. Owners invite members as editor/viewer; membership and version checks remain in SQL at write time.
-
-## Reproduce the checks
+Для первоначального администратора или закрытой регистрации скопируйте `.account.env.example` в игнорируемый `.account.env`, задайте свои значения и выполните `pnpm account:create`. Команда использует `DATABASE_URL` окружения либо `data/flowboard.db`. Чтобы загрузить оба файла явно:
 
 ```bash
-pnpm test
-pnpm test:contract
-pnpm test:upgrade
-pnpm lint
-pnpm format:check
-pnpm typecheck
-pnpm test:e2e:auth
+node --env-file=.env --env-file=.account.env --import tsx server/create-account.ts
 ```
 
-`real-sessions.test.ts` covers session rotation/revocation/expiry, password/token storage, private isolation, viewer/editor/owner boundaries, a conflicting edit and revocation. `session-auth.test.ts` reproduces the old header impersonation problem. The browser auth fixture uses isolated temporary accounts and checks desktop/mobile login, a private task, persistence and logout.
+Скрипт печатает только ID. Удалите временный файл пароля после создания. `FLOW_USER_MEMBER_ID` позволяет администратору привязать аккаунт к существующему участнику без потери задач/прав. Публичный маршрут не принимает это поле.
 
+## Вход и устройства
 
-## API module boundaries
+Пароли: salted scrypt N=32768, r=8, p=3; одновременно не более двух derivation на процесс. Успешный вход создаёт случайный 32-байтовый токен, в БД только SHA-256. Cookie — HttpOnly, SameSite=Strict, Path=/, Secure при HTTPS. Срок 24 часа. Браузер не хранит пароль или сессионный токен в localStorage.
 
-`src/flow-api.ts` applies the origin check, resolves workspace membership and mutation limits, then dispatches to three focused modules. `flow-reads.ts` contains scoped reads/history/export, `flow-workspaces.ts` contains workspace/invitation/member/project lifecycle, and `flow-tasks.ts` contains task creation, CAS edits/status/deletion/restore and reference checks. `flow-http.ts` retains the typed SQL adapter contract, bounded JSON parsing and controlled errors. The same API module entry point is used by local SQLite and the hosted D1 extract; database guards still enforce write-time membership, assignee and version invariants. The refactor preserves HTTP shapes and tests instead of adding a generic service/repository framework.
+В «Безопасность аккаунта» доступны активные браузеры, отзыв отдельной чужой сессии и выход на остальных устройствах. Публичный session_id не совпадает с секретным токеном. Сброс пароля/изменение MFA отзывает прежние сессии. Уже начатую операцию отзыв не превращает в распределённую отмену; новые запросы проверяются заново.
+
+## Двухфакторная защита
+
+Настройка требует текущего пароля. Сервер выдаёт секрет и QR `otpauth`; для включения требуется шестизначный TOTP. Используется RFC 6238, SHA-1, шаг 30 секунд и допуск ±1 шаг. Уже принятый или более старый счётчик повторно не принимается.
+
+После включения выдаются 10 резервных кодов, каждый одноразовый; в БД хеши. Секрет TOTP зашифрован AES-256-GCM. Пароль при включённой MFA создаёт только короткую challenge, а не полную cookie. Challenge истекает через пять минут, допускает пять неудачных попыток. Отключение требует пароль и код; ссылка восстановления пароля сама по себе MFA не выключает.
+
+## Настройки доверия
+
+Для production нужны `NODE_ENV=production` и явный HTTPS `FLOW_PUBLIC_ORIGIN`. HTTP разрешён только для loopback. За известным reverse proxy можно задать `FLOW_TRUST_PROXY_HOPS=1..3`; по умолчанию forwarded-заголовки не считаются доверенными. Топология должна исключать обход прокси.
+
+`FLOW_AUTH_MODE=demo` разрешён только при явном включении на non-production loopback; проверяются bind host, входящий host и peer. Не открывайте этот режим наружу.
+
+Лимиты входа, регистрации, ссылок, MFA и операций хранятся атомарно в общей БД. Для нескольких серверов используйте одну PostgreSQL; локальная SQLite остаётся одним писателем. JSON ограничен 16 KiB. Небезопасные браузерные запросы проверяют Origin и Sec-Fetch-Site.
+
+Проверки: `tests/account-flows.test.ts`, `tests/real-sessions.test.ts`, `tests/session-auth.test.ts`, `tests/e2e/auth.spec.mjs`.

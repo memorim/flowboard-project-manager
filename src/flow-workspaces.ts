@@ -28,11 +28,14 @@ export async function workspaceRoutes(req: Request, db: SqlDB, actor: Actor | nu
   if (path === '/api/workspaces' && method === 'POST') {
     if (!actor) throw new HttpError(401, 'Войдите для создания пространства');
     const { name } = parse(nameSchema, await body(req));
+    if (db.dialect === 'postgres')
+      await q('SELECT id FROM members WHERE id=? FOR UPDATE', actor.id).first();
     const count = await q(
       "SELECT COUNT(*) n FROM memberships WHERE member_id=? AND role='owner'",
       actor.id,
     ).first<{ n: number }>();
-    if ((count?.n ?? 0) >= 10) throw new HttpError(429, 'В демо до 10 пространств на участника');
+    if ((count?.n ?? 0) >= (db.limits?.workspaces ?? 10))
+      throw new HttpError(429, 'Достигнута квота пространств');
     const [created] = await db.batch([
       q('INSERT INTO workspaces(name,is_public) VALUES (?,0)', name),
       q(
@@ -40,7 +43,10 @@ export async function workspaceRoutes(req: Request, db: SqlDB, actor: Actor | nu
         actor.id,
       ),
       q(
-        "INSERT INTO projects(name,client,color,progress,due_date,workspace_id) SELECT 'Основной проект','Команда','#ff6b3d',0,?,workspace_id FROM memberships WHERE member_id=? AND role='owner' ORDER BY workspace_id DESC LIMIT 1",
+        "INSERT INTO projects(name,client,color,progress,due_date,workspace_id) SELECT 'Основной проект','Команда','#ff6b3d',0,?,workspace_id FROM memberships WHERE member_id=? AND role='owner'" +
+          (db.dialect === 'postgres'
+            ? ' AND workspace_id=last_insert_rowid()'
+            : ' ORDER BY workspace_id DESC LIMIT 1'),
         new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
         actor.id,
       ),
@@ -62,6 +68,11 @@ export async function workspaceRoutes(req: Request, db: SqlDB, actor: Actor | nu
     if (!invitation || invitation.expires_at <= now || invitation.accepted_by !== null)
       throw new HttpError(410, 'Приглашение истекло или уже использовано');
     await db.batch([
+      q(
+        'SELECT token_hash FROM invitations WHERE token_hash=? AND accepted_by IS NULL' +
+          (db.dialect === 'postgres' ? ' FOR UPDATE' : ''),
+        hash,
+      ),
       q(
         'INSERT OR IGNORE INTO memberships(workspace_id,member_id,role) SELECT workspace_id,?,role FROM invitations WHERE token_hash=? AND expires_at>? AND accepted_by IS NULL',
         actor.id,
@@ -96,7 +107,7 @@ export async function workspaceWrites({ req, db, actor, workspace, role, event }
       workspace,
       new Date().toISOString(),
     ).first<{ n: number }>();
-    if ((count?.n || 0) >= 20)
+    if ((count?.n || 0) >= (db.limits?.invitations ?? 20))
       throw new HttpError(429, 'Сначала используйте действующие приглашения');
     const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (v) =>
         v.toString(16).padStart(2, '0'),
@@ -165,7 +176,15 @@ export async function workspaceWrites({ req, db, actor, workspace, role, event }
     const count = await q('SELECT COUNT(*) n FROM projects WHERE workspace_id=?', workspace).first<{
       n: number;
     }>();
-    if ((count?.n || 0) >= 30) throw new HttpError(429, 'В демо до 30 проектов на пространство');
+    let quota = db.limits?.projects ?? 30;
+    if (db.limits) {
+      const plan = await q(
+        'SELECT valid_until FROM workspace_plans WHERE workspace_id=?',
+        workspace,
+      ).first<{ valid_until: number }>();
+      if (plan && plan.valid_until > Date.now()) quota = Math.min(10000, quota * 4);
+    }
+    if ((count?.n || 0) >= quota) throw new HttpError(429, 'Достигнута квота проектов');
     const [result] = await db.batch([
       q(
         "INSERT INTO projects(name,client,color,progress,due_date,workspace_id) SELECT ?,'Команда','#7c64e3',0,?,? WHERE EXISTS(SELECT 1 FROM memberships WHERE workspace_id=? AND member_id=? AND role IN ('owner','editor'))",
