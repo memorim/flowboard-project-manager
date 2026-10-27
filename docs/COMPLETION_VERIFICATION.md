@@ -37,3 +37,11 @@
 - Проверка локальных ссылок Markdown: 19 файлов, 0 ошибок.
 
 GitHub CI проверяется отдельно на SHA PR. Его результат не заменяется локальным выводом; итоговый статус и ссылка будут зафиксированы после завершения запуска.
+
+## GitHub CI
+
+Проверен commit `37f65bd747257a4099d4b54f8d12d49810282513`, [PR #7](https://github.com/memorim/flowboard-project-manager/pull/7).
+
+[CI run 40566849615](https://github.com/memorim/flowboard-project-manager/actions/runs/40566849615): quality и local-stack — success. В Linux прошли полные browser E2E, auth E2E, API/настоящая PostgreSQL, контракт, upgrade, линтер, форматирование, типы, обе сборки и dependency audit. local-stack отдельно собрал чистый Docker-образ, поднял PostgreSQL/Mailpit и выполнил SMTP-регистрацию/вход/задачу. Documentation run 40566849631 — success.
+
+Windows-ограничение запуска отдельных браузеров не воспроизвелось на Linux CI; проверки не отключались. Последующая правка этого документа не меняет проверенный исходный код. Публичная публикация полной Node-версии и реальные интеграции остаются отдельной операцией с реквизитами владельца.
