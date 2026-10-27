@@ -69,6 +69,11 @@ export async function importSqlite(sourceFile: string, target: Store) {
           .first<{ n: number }>();
         if (count!.n) throw new Error('Target must be empty; no existing data may be replaced');
       }
+      const placeholder = await target
+        .prepare('SELECT name,is_public FROM workspaces WHERE id=1 FOR UPDATE')
+        .first<{ name: string; is_public: number }>();
+      if (placeholder && (placeholder.name !== 'Общее пространство' || placeholder.is_public !== 1))
+        throw new Error('Target must be empty; the initial workspace has been modified');
       // Only a fresh target placeholder is removed, inside a transaction. Source is read-only.
       await target.prepare('DELETE FROM workspaces WHERE id=1').run();
       await target.prepare('ALTER TABLE tasks DISABLE TRIGGER USER').run();

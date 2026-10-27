@@ -20,6 +20,16 @@ test(
     source.close();
     const target = await createPostgresStore(url, schema);
     try {
+      await target
+        .prepare("UPDATE workspaces SET name='Existing custom workspace' WHERE id=1")
+        .run();
+      await assert.rejects(importSqlite(file, target), /initial workspace has been modified/);
+      assert.equal(
+        (await target.prepare('SELECT name FROM workspaces WHERE id=1').first<{ name: string }>())!
+          .name,
+        'Existing custom workspace',
+      );
+      await target.prepare("UPDATE workspaces SET name='Общее пространство' WHERE id=1").run();
       const counts = await importSqlite(file, target);
       assert.equal(counts.tasks, 8);
       assert.equal(counts.members, 4);
