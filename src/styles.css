@@ -1188,6 +1188,51 @@ textarea:focus-visible {
 }
 
 /* Whole-page desktop zoom; viewport units and breakpoints use the same effective size. */
+.auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.account-dialog section {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 20px;
+}
+.account-dialog img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.account-dialog textarea {
+  width: 100%;
+  max-width: 100%;
+}
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.session-row div {
+  min-width: 0;
+}
+.session-row p {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.account-dialog details summary {
+  cursor: pointer;
+  margin: 14px 0;
+}
+@media (max-width: 500px) {
+  .session-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
 @media screen and (min-width: 801px) {
   html {
     --page-zoom: 1.25;

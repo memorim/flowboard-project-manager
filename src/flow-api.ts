@@ -12,7 +12,9 @@ export async function flowApi(
   mode: 'local' | 'chatgpt' | 'authenticated',
 ) {
   try {
-    return await handle(req, db, actor, mode);
+    return await (db.transaction && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
+      ? db.transaction(() => handle(req, db, actor, mode))
+      : handle(req, db, actor, mode));
   } catch (error) {
     if (String(error).includes('flow_access_denied'))
       return json({ message: 'Право на изменение отозвано' }, 403);
@@ -64,12 +66,21 @@ async function handle(req: Request, db: SqlDB, actor: Actor | null, mode: string
   if (read) return read;
   if (!actor) throw new HttpError(401, 'Войдите для изменения данных');
   if (role === 'viewer') throw new HttpError(403, 'Роль наблюдателя разрешает только просмотр');
+  if (db.dialect === 'postgres') {
+    await q('SELECT id FROM workspaces WHERE id=? FOR UPDATE', workspace).first();
+    const writable = await q(
+      "SELECT role FROM memberships WHERE workspace_id=? AND member_id=? AND role IN ('owner','editor') FOR SHARE",
+      workspace,
+      actor.id,
+    ).first();
+    if (!writable) throw new HttpError(403, 'Право на изменение отозвано');
+  }
   const recent = await q(
     'SELECT COUNT(*) n FROM activity WHERE member_id=? AND created_at>?',
     actor.id,
     new Date(Date.now() - 60000).toISOString(),
   ).first<{ n: number }>();
-  const limited = (recent?.n || 0) >= 30;
+  const limited = !db.limits && (recent?.n || 0) >= 30;
   if (limited && !(path === '/api/tasks' && method === 'POST'))
     throw new HttpError(429, 'До 30 изменений в минуту. Повторите позднее.');
   const event = (text: string, conditional = false) =>

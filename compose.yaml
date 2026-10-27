@@ -1,0 +1,51 @@
+# Local-only complete server: pnpm setup:local && docker compose up --build -d
+services:
+  app:
+    build: .
+    ports: ['127.0.0.1:${FLOW_LOCAL_PORT:-4100}:4100']
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      FLOW_PUBLIC_ORIGIN: http://127.0.0.1:${FLOW_LOCAL_PORT:-4100}
+      DATABASE_URL: postgresql://flowboard:${POSTGRES_PASSWORD:?Run pnpm setup:local}@postgres:5432/flowboard
+      FLOW_APP_KEY: ${FLOW_APP_KEY:?Run pnpm setup:local}
+      FLOW_YOOKASSA_WEBHOOK_TOKEN: ${FLOW_YOOKASSA_WEBHOOK_TOKEN:?Run pnpm setup:local}
+      SMTP_HOST: mailpit
+      SMTP_PORT: '1025'
+      SMTP_FROM: no-reply@flowboard.local
+      FLOW_SMTP_ALLOW_PLAINTEXT: 'true'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    init: true
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4100/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    stop_grace_period: 45s
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: flowboard
+      POSTGRES_USER: flowboard
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run pnpm setup:local}
+    volumes: [flowboard-db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U flowboard -d flowboard']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  mailpit:
+    image: axllent/mailpit:v1.27.4
+    ports: ['127.0.0.1:${FLOW_MAIL_PORT:-8025}:8025']
+volumes:
+  flowboard-db:

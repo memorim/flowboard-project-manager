@@ -2,19 +2,51 @@ import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { serverApi } from './api';
 
+export type AuthAction = { action: 'verify' | 'reset'; token: string };
 export function AuthDialog({
   onClose,
   onSignedIn,
+  initial,
 }: {
   onClose: () => void;
   onSignedIn: () => Promise<void>;
+  initial?: AuthAction | null;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [view, setView] = useState<'login' | 'register' | 'forgot' | 'verify' | 'reset' | 'mfa'>(
+    initial?.action || 'login',
+  );
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [message, setMessage] = useState(''),
+    [challenge, setChallenge] = useState('');
+  const [config, setConfig] = useState({ registration: false, passwordReset: false, mfa: false });
   useEffect(() => {
     dialog.current?.showModal();
+    let active = true;
+    serverApi
+      .authConfig()
+      .then((value) => {
+        if (active) setConfig(value);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, []);
+  const titles = {
+    login: 'Вход в Flowboard',
+    register: 'Создать аккаунт',
+    forgot: 'Восстановить доступ',
+    verify: 'Подтвердить почту',
+    reset: 'Новый пароль',
+    mfa: 'Подтвердить вход',
+  };
+  const change = (next: typeof view) => {
+    setView(next);
+    setError('');
+    setMessage('');
+  };
   return (
     <dialog
       ref={dialog}
@@ -26,64 +58,173 @@ export function AuthDialog({
       }}
     >
       <div className="modal-head">
-        <h2 id="login-title">Вход в Flowboard</h2>
+        <h2 id="login-title">{titles[view]}</h2>
         <button className="icon-button" onClick={onClose} aria-label="Закрыть вход">
           <X />
         </button>
       </div>
       <form
+        key={view}
         onSubmit={async (event) => {
           event.preventDefault();
           if (busy) return;
-          const data = new FormData(event.currentTarget);
+          const form = event.currentTarget,
+            data = new FormData(form),
+            email = String(data.get('email') || ''),
+            password = String(data.get('password') || '');
           setBusy(true);
           setError('');
+          setMessage('');
           try {
-            await serverApi.login(String(data.get('email')), String(data.get('password')));
-            await onSignedIn();
-            onClose();
-          } catch (error) {
-            setError(error instanceof Error ? error.message : 'Не удалось войти');
+            if (view === 'register') {
+              const result = await serverApi.register(String(data.get('name')), email, password);
+              setMessage(result.message);
+              form.reset();
+            } else if (view === 'forgot') {
+              const result = await serverApi.forgotPassword(email);
+              setMessage(result.message);
+              form.reset();
+            } else if (view === 'verify' || view === 'reset') {
+              if (!initial) throw new Error('Откройте ссылку из письма');
+              if (view === 'verify') await serverApi.verifyEmail(initial.token, password);
+              else await serverApi.resetPassword(initial.token, password);
+              setView('login');
+              setMessage(
+                view === 'verify'
+                  ? 'Почта подтверждена. Теперь войдите.'
+                  : 'Пароль обновлён. Войдите с новым паролем.',
+              );
+            } else {
+              if (view === 'login') {
+                const result = await serverApi.login(email, password);
+                if (result.mfaRequired && result.challenge) {
+                  setChallenge(result.challenge);
+                  setView('mfa');
+                  return;
+                }
+              } else await serverApi.verifyMfa(challenge, String(data.get('code')));
+              await onSignedIn();
+              onClose();
+            }
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Не удалось выполнить действие');
           } finally {
             setBusy(false);
           }
         }}
       >
-        <label>
-          Электронная почта
-          <input
-            name="email"
-            type="email"
-            autoComplete="username"
-            maxLength={254}
-            required
-            autoFocus
-          />
-        </label>
-        <label>
-          Пароль
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            maxLength={128}
-            required
-          />
-        </label>
+        {view === 'register' && (
+          <label>
+            Ваше имя
+            <input
+              name="name"
+              autoComplete="name"
+              minLength={2}
+              maxLength={80}
+              required
+              autoFocus
+            />
+          </label>
+        )}
+        {['login', 'register', 'forgot'].includes(view) && (
+          <label>
+            Электронная почта
+            <input
+              name="email"
+              type="email"
+              autoComplete="username"
+              maxLength={254}
+              required
+              autoFocus={view !== 'register'}
+            />
+          </label>
+        )}
+        {['login', 'register', 'verify', 'reset'].includes(view) && (
+          <label>
+            {view === 'verify' ? 'Пароль, выбранный при регистрации' : 'Пароль'}
+            <input
+              name="password"
+              aria-label={view === 'verify' ? 'Пароль, выбранный при регистрации' : 'Пароль'}
+              type="password"
+              autoComplete={
+                view === 'register' || view === 'reset' ? 'new-password' : 'current-password'
+              }
+              minLength={view === 'login' ? 1 : 15}
+              maxLength={128}
+              required
+              autoFocus={view === 'verify' || view === 'reset'}
+            />
+            {view !== 'login' && <small>От 15 до 128 символов.</small>}
+          </label>
+        )}
+        {view === 'mfa' && (
+          <label>
+            Код из приложения или резервный код
+            <input name="code" autoComplete="one-time-code" maxLength={32} required autoFocus />
+            <small>
+              Код приложения меняется каждые 30 секунд. Каждый резервный код используется один раз.
+            </small>
+          </label>
+        )}
         {error && (
           <p className="form-error" role="alert">
             {error}
           </p>
         )}
+        {message && <p role="status">{message}</p>}
         <div className="modal-actions">
           <button type="button" className="button ghost" onClick={onClose}>
             Отмена
           </button>
           <button className="button primary" disabled={busy}>
-            {busy ? 'Входим…' : 'Войти в аккаунт'}
+            {busy
+              ? 'Подождите…'
+              : view === 'register'
+                ? 'Зарегистрироваться'
+                : view === 'forgot'
+                  ? 'Отправить письмо'
+                  : view === 'verify'
+                    ? 'Подтвердить почту'
+                    : view === 'reset'
+                      ? 'Обновить пароль'
+                      : view === 'mfa'
+                        ? 'Подтвердить'
+                        : 'Войти в аккаунт'}
           </button>
         </div>
       </form>
+      <div className="auth-links">
+        {view !== 'login' && (
+          <button
+            type="button"
+            className="button ghost"
+            disabled={busy}
+            onClick={() => change('login')}
+          >
+            Вернуться ко входу
+          </button>
+        )}
+        {view === 'login' && config.registration && (
+          <button
+            type="button"
+            className="button ghost"
+            disabled={busy}
+            onClick={() => change('register')}
+          >
+            Создать аккаунт
+          </button>
+        )}
+        {view === 'login' && config.passwordReset && (
+          <button
+            type="button"
+            className="button ghost"
+            disabled={busy}
+            onClick={() => change('forgot')}
+          >
+            Забыли пароль?
+          </button>
+        )}
+      </div>
     </dialog>
   );
 }

@@ -38,8 +38,93 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   return response.status === 204 ? (undefined as T) : response.json();
 }
 export const serverApi = {
+  directory: () =>
+    request<{ enabled: boolean; configured: boolean; baseUrl: string }>(
+      '/api/integrations/directory',
+    ),
+  createDirectoryToken: (password: string, role: string) =>
+    request<{ token: string }>('/api/integrations/directory/token', {
+      method: 'POST',
+      body: JSON.stringify({ password, role }),
+    }),
+  revokeDirectoryToken: () => request('/api/integrations/directory/token', { method: 'DELETE' }),
+  billing: () =>
+    request<{
+      enabled: boolean;
+      testMode: boolean;
+      amountCents: number;
+      validUntil: number | null;
+      payments: {
+        id: string;
+        amount_cents: number;
+        status: string;
+        created_at: number;
+        is_test: number;
+      }[];
+    }>('/api/billing'),
+  checkout: (key: string) =>
+    request<{ id: string; status: string; confirmationUrl: string | null }>(
+      '/api/billing/checkout',
+      {
+        method: 'POST',
+        headers: { 'Idempotency-Key': key },
+        body: JSON.stringify({ plan: 'team' }),
+      },
+    ),
+  refreshPayment: (id: string) =>
+    request('/api/billing/payments/' + id + '/refresh', { method: 'POST' }),
+  authConfig: () =>
+    request<{ registration: boolean; passwordReset: boolean; mfa: boolean }>('/api/auth/config'),
+  register: (name: string, email: string, password: string) =>
+    request<{ message: string }>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password }),
+    }),
+  forgotPassword: (email: string) =>
+    request<{ message: string }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  verifyEmail: (token: string, password: string) =>
+    request('/api/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    }),
+  resetPassword: (token: string, password: string) =>
+    request('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    }),
+  verifyMfa: (challenge: string, code: string) =>
+    request('/api/auth/mfa/verify', { method: 'POST', body: JSON.stringify({ challenge, code }) }),
+  account: () =>
+    request<{ id: number; name: string; email: string; mfaEnabled: boolean }>('/api/auth/account'),
+  sessions: () =>
+    request<
+      {
+        session_id: string;
+        created_at: number;
+        expires_at: number;
+        device: string;
+        current: boolean;
+      }[]
+    >('/api/auth/sessions'),
+  revokeSession: (id: string) => request('/api/auth/sessions/' + id, { method: 'DELETE' }),
+  revokeOtherSessions: () => request('/api/auth/sessions/revoke-others', { method: 'POST' }),
+  setupMfa: (password: string) =>
+    request<{ secret: string; uri: string; qr: string }>('/api/auth/mfa/setup', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
+  enableMfa: (code: string) =>
+    request<{ recoveryCodes: string[] }>('/api/auth/mfa/enable', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
+  disableMfa: (password: string, code: string) =>
+    request('/api/auth/mfa/disable', { method: 'POST', body: JSON.stringify({ password, code }) }),
   login: (email: string, password: string) =>
-    request<{ ok: boolean }>('/api/auth/login', {
+    request<{ ok?: boolean; mfaRequired?: boolean; challenge?: string }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
@@ -54,6 +139,11 @@ export const serverApi = {
     request<{ token: string; expiresAt: string }>('/api/invitations', {
       method: 'POST',
       body: JSON.stringify({ role }),
+    }),
+  inviteByEmail: (role: string, email: string) =>
+    request<{ email: string; expiresAt: string }>('/api/invitations/email', {
+      method: 'POST',
+      body: JSON.stringify({ role, email }),
     }),
   acceptInvite: (token: string) =>
     request<{ workspaceId: number }>('/api/invitations/accept', {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, selectWorkspace } from './api';
+import { api, serverApi, selectWorkspace } from './api';
 import type { Member, Session } from './types';
+import { WorkspaceIntegrations } from './WorkspaceIntegrations';
 const labels: Record<string, string> = {
   owner: 'Владелец',
   editor: 'Редактор',
@@ -20,7 +21,8 @@ export function WorkspaceDialog({
   const dialog = useRef<HTMLDialogElement>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
-    [invite, setInvite] = useState('');
+    [invite, setInvite] = useState(''),
+    [notice, setNotice] = useState('');
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
@@ -129,7 +131,15 @@ export function WorkspaceDialog({
             onSubmit={(e) => {
               e.preventDefault();
               const role = String(new FormData(e.currentTarget).get('role'));
+              const email = String(new FormData(e.currentTarget).get('email') || '').trim();
               void run(async () => {
+                setNotice('');
+                if (email) {
+                  const result = await serverApi.inviteByEmail(role, email);
+                  setInvite('');
+                  setNotice('Письмо для ' + result.email + ' поставлено в очередь отправки.');
+                  return;
+                }
                 const result = await api.invite(role);
                 setInvite(
                   window.location.origin + window.location.pathname + '#invite=' + result.token,
@@ -144,10 +154,20 @@ export function WorkspaceDialog({
                 <option value="viewer">Наблюдатель — только просмотр</option>
               </select>
             </label>
+            {session.mode === 'authenticated' && (
+              <label>
+                Почта участника (необязательно)
+                <input name="email" type="email" maxLength={254} autoComplete="email" />
+                <small>
+                  Укажите адрес для отправки письма или оставьте пустым, чтобы получить ссылку.
+                </small>
+              </label>
+            )}
             <button className="button ghost" disabled={busy}>
               Создать приглашение
             </button>
           </form>
+          {notice && <p role="status">{notice}</p>}
           {invite && (
             <label>
               Ссылка для приглашённого
@@ -164,6 +184,7 @@ export function WorkspaceDialog({
           )}
         </section>
       )}
+      {owner && session.mode === 'authenticated' && <WorkspaceIntegrations />}
       <section>
         <h3>Участники</h3>
         {members.map((m) => (

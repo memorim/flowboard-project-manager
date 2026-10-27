@@ -15,7 +15,8 @@ import {
   X,
 } from 'lucide-react';
 import { api, serverApi, workspaceId, selectWorkspace } from './api';
-import { AuthDialog } from './AuthDialog';
+import { AuthDialog, type AuthAction } from './AuthDialog';
+import { AccountDialog } from './AccountDialog';
 import { GuidedDemo } from './GuidedDemo';
 import { TaskHistoryDialog } from './TaskHistoryDialog';
 import { WorkspaceDialog } from './WorkspaceDialog';
@@ -347,6 +348,23 @@ export default function App() {
     [returnTo, setReturnTo] = useState('/');
   const [guide, setGuide] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [authAction, setAuthAction] = useState<AuthAction | null>(() => {
+    const params = new URLSearchParams(window.location.search),
+      action = params.get('auth'),
+      token = params.get('token');
+    return (action === 'verify' || action === 'reset') && token && /^[a-f0-9]{64}$/.test(token)
+      ? { action, token }
+      : null;
+  });
+  useEffect(() => {
+    if (!authAction) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('auth');
+    url.searchParams.delete('token');
+    window.history.replaceState(null, '', url);
+    setLoginOpen(true);
+  }, [authAction]);
   const [historyTask, setHistoryTask] = useState<Task | null>(null);
   const [taskOffset, setTaskOffset] = useState(0),
     [taskTotal, setTaskTotal] = useState(0);
@@ -463,6 +481,7 @@ export default function App() {
     setStatusFilter('');
   };
   const identityChanged = async () => {
+    setAccountOpen(false);
     setEditor(undefined);
     setManage(false);
     setHistoryTask(null);
@@ -540,18 +559,27 @@ export default function App() {
               {session.user?.name || 'Гостевой просмотр'}
               <br />
               {session.user ? (
-                <button
-                  className="button ghost"
-                  disabled={busy}
-                  onClick={() =>
-                    void mutate(async () => {
-                      await serverApi.logout();
-                      await identityChanged();
-                    })
-                  }
-                >
-                  Выйти
-                </button>
+                <>
+                  <button
+                    className="button ghost"
+                    disabled={busy}
+                    onClick={() => setAccountOpen(true)}
+                  >
+                    Безопасность аккаунта
+                  </button>
+                  <button
+                    className="button ghost"
+                    disabled={busy}
+                    onClick={() =>
+                      void mutate(async () => {
+                        await serverApi.logout();
+                        await identityChanged();
+                      })
+                    }
+                  >
+                    Выйти
+                  </button>
+                </>
               ) : (
                 <button className="button ghost" onClick={() => setLoginOpen(true)}>
                   Вход в аккаунт
@@ -925,7 +953,7 @@ export default function App() {
                 </h1>
                 <p>
                   {taskTotal} задач ·{' '}
-                  {session.mode === 'chatgpt'
+                  {session.mode === 'chatgpt' || session.mode === 'authenticated'
                     ? 'данные общей базы; обновление после действий'
                     : 'демонстрационный режим'}
                 </p>
@@ -1114,7 +1142,17 @@ export default function App() {
           }}
         />
       )}
-      {loginOpen && <AuthDialog onClose={() => setLoginOpen(false)} onSignedIn={identityChanged} />}
+      {loginOpen && (
+        <AuthDialog
+          initial={authAction}
+          onClose={() => {
+            setLoginOpen(false);
+            setAuthAction(null);
+          }}
+          onSignedIn={identityChanged}
+        />
+      )}
+      {accountOpen && <AccountDialog onClose={() => setAccountOpen(false)} />}
       {historyTask && (
         <TaskHistoryDialog task={historyTask} onClose={() => setHistoryTask(null)} />
       )}{' '}

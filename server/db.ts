@@ -122,6 +122,30 @@ export function createDatabase(filename = resolve('data', 'flowboard.db')) {
       "INSERT OR IGNORE INTO memberships(workspace_id,member_id,role) SELECT 1,id,CASE WHEN id=4 THEN 'owner' ELSE 'editor' END FROM members WHERE id BETWEEN 1 AND 4",
     );
     db.exec(readFileSync(new URL('./auth-schema.sql', import.meta.url), 'utf8'));
+    for (const [table, column, definition] of [
+      ['accounts', 'email_verified', 'INTEGER NOT NULL DEFAULT 1'],
+      ['accounts', 'password_version', 'INTEGER NOT NULL DEFAULT 1'],
+      ['accounts', 'mfa_secret', 'TEXT'],
+      ['accounts', 'mfa_pending', 'TEXT'],
+      ['accounts', 'mfa_pending_until', 'BIGINT'],
+      ['accounts', 'mfa_counter', 'BIGINT NOT NULL DEFAULT -1'],
+      ['sessions', 'session_id', 'TEXT'],
+      ['sessions', 'created_at', 'BIGINT NOT NULL DEFAULT 0'],
+      ['sessions', 'device', "TEXT NOT NULL DEFAULT ''"],
+      ['invitations', 'email', 'TEXT'],
+    ]) {
+      if (
+        !(db.prepare('PRAGMA table_info(' + table + ')').all() as { name: string }[]).some(
+          (c) => c.name === column,
+        )
+      )
+        db.exec('ALTER TABLE ' + table + ' ADD COLUMN ' + column + ' ' + definition);
+    }
+    db.exec(
+      'UPDATE sessions SET session_id=lower(hex(randomblob(16))) WHERE session_id IS NULL; CREATE UNIQUE INDEX IF NOT EXISTS session_identifier ON sessions(session_id);',
+    );
+    db.exec(readFileSync(new URL('./account-schema.sql', import.meta.url), 'utf8'));
+    db.exec(readFileSync(new URL('./integrations-schema.sql', import.meta.url), 'utf8'));
     db.exec(readFileSync(new URL('./access-constraints.sql', import.meta.url), 'utf8'));
     db.exec('COMMIT');
     return db;
