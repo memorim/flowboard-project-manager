@@ -176,8 +176,9 @@ test('failed provider exchange logs its stage without codes, tokens or credentia
 test('GitHub HTTP 200 token errors become OAuth errors without logging provider payloads', async (t) => {
   const warnings: string[] = [];
   let payload: object = { error: 'bad_verification_code', error_description: 'private-detail' };
+  let status = 200;
   t.mock.method(console, 'warn', (value: string) => warnings.push(value));
-  t.mock.method(globalThis, 'fetch', async () => Response.json(payload));
+  t.mock.method(globalThis, 'fetch', async () => Response.json(payload, { status }));
   const endpoint = 'https://github.com/login/oauth/access_token';
   assert.equal((await identityFetch(endpoint)).status, 400);
   assert.deepEqual(JSON.parse(warnings[0]), {
@@ -192,6 +193,13 @@ test('GitHub HTTP 200 token errors become OAuth errors without logging provider 
   const success = await identityFetch(endpoint);
   assert.equal(success.status, 200);
   assert.equal((await success.json()).access_token, 'fixture-token');
+  status = 403;
+  assert.equal((await identityFetch(endpoint)).status, 403);
+  assert.deepEqual(JSON.parse(warnings.at(-1)!), {
+    event: 'github_token_http_failed',
+    status: 403,
+  });
+  assert.doesNotMatch(warnings.join(''), /fixture-token|private-detail/);
 });
 
 test(
