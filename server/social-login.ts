@@ -243,6 +243,17 @@ export function installSocialLogin(
       }
       return res.redirect('/');
     } catch (error) {
+      const cause = error instanceof Error ? error.cause : undefined;
+      // Fixed labels only: provider errors can contain credentials and authorization codes.
+      const reasons: Record<string, string> = {
+        'no authorization code in "callbackParameters"': 'missing_code',
+        '"response" body "access_token" property must be a string': 'invalid_access_token',
+        '"response" body "token_type" property must be a string': 'invalid_token_type',
+        '"response" body "scope" property must be a string': 'invalid_scope',
+        '"state" response parameter missing': 'missing_state',
+        'unexpected "state" response parameter value': 'invalid_state',
+        'unexpected "iss" (issuer) response parameter value': 'invalid_issuer',
+      };
       console.warn(
         JSON.stringify({
           event: 'oauth_sign_in_failed',
@@ -251,6 +262,7 @@ export function installSocialLogin(
             : 'unknown',
           stage,
           code: error instanceof oidc.ClientError ? error.code || 'unexpected' : 'unexpected',
+          reason: cause instanceof Error ? reasons[cause.message] || 'other' : 'other',
         }),
       );
       res.redirect('/?auth=provider-error');

@@ -80,7 +80,7 @@ function fixture() {
           ? Buffer.alloc(256)
           : sign('RSA-SHA256', Buffer.from(encoded), keys.privateKey);
       return Response.json({
-        access_token: 'fixture-token',
+        access_token: defect === 'missing-token' ? undefined : 'fixture-token',
         token_type: 'bearer',
         expires_in: 300,
         ...(['accounts.google.com', 'oauth.telegram.org'].includes(expected.hostname)
@@ -164,7 +164,14 @@ test('failed provider exchange logs its stage without codes, tokens or credentia
       provider: 'github',
       stage: 'token',
       code: 'unexpected',
+      reason: 'other',
     });
+    f.defect('missing-token');
+    assert.equal(
+      (await f.callback(await f.start('github'))).headers.location,
+      '/?auth=provider-error',
+    );
+    assert.equal(JSON.parse(warnings.at(-1)!).reason, 'invalid_access_token');
     assert.doesNotMatch(warnings.join(''), /fixture-code|fixture-secret|fixture-token/);
     assert.ok(!warnings.join('').includes(flow.cookie.split('=')[1]));
     assert.ok(!warnings.join('').includes(flow.url.searchParams.get('state')!));
