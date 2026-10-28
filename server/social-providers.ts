@@ -37,17 +37,30 @@ export async function identityFetch(input: RequestInfo | URL, init?: RequestInit
     }
   const body = Buffer.concat(chunks);
   let status = response.status;
-  // GitHub returns token errors with HTTP 200; OAuth libraries expect a 4xx response.
-  if (String(input) === definitions.github.token_endpoint && status === 200) {
+  const provider =
+    String(input) === definitions.github.token_endpoint
+      ? 'github'
+      : String(input) === definitions.telegram.token_endpoint
+        ? 'telegram'
+        : undefined;
+  // These providers return token errors with HTTP 200; OAuth libraries expect 4xx.
+  if (provider && status === 200) {
     const token = JSON.parse(body.toString('utf8')) as { error?: unknown } | null;
     if (typeof token?.error === 'string') {
       status = 400;
       const reason = z
-        .enum(['bad_verification_code', 'incorrect_client_credentials', 'redirect_uri_mismatch'])
+        .enum([
+          'bad_verification_code',
+          'incorrect_client_credentials',
+          'redirect_uri_mismatch',
+          'invalid_grant',
+          'invalid_client',
+          'invalid_request',
+        ])
         .safeParse(token.error);
       console.warn(
         JSON.stringify({
-          event: 'github_token_rejected',
+          event: provider + '_token_rejected',
           reason: reason.success ? reason.data : 'provider_error',
         }),
       );

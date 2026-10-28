@@ -210,6 +210,12 @@ test('GitHub HTTP 200 token errors become OAuth errors without logging provider 
   assert.equal((await identityFetch(endpoint)).status, 400);
   assert.doesNotMatch(warnings.join(''), /private-detail|sensitive-unrecognized-error/);
   assert.equal((await identityFetch('https://oauth.yandex.ru/token')).status, 200);
+  payload = { error: 'invalid_grant' };
+  assert.equal((await identityFetch('https://oauth.telegram.org/token')).status, 400);
+  assert.deepEqual(JSON.parse(warnings.at(-1)!), {
+    event: 'telegram_token_rejected',
+    reason: 'invalid_grant',
+  });
   payload = { access_token: 'fixture-token', token_type: 'bearer' };
   const success = await identityFetch(endpoint);
   assert.equal(success.status, 200);
