@@ -6,7 +6,7 @@ import { createApp } from '../server/app.js';
 import { createDatabase } from '../server/db.js';
 import { createAccount } from '../server/auth.js';
 import { digest, totp } from '../server/account-crypto.js';
-import { socialProviders, type ProviderId } from '../server/social-providers.js';
+import { identityFetch, socialProviders, type ProviderId } from '../server/social-providers.js';
 import { createPostgresStore } from '../server/postgres.js';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
@@ -171,6 +171,27 @@ test('failed provider exchange logs its stage without codes, tokens or credentia
   } finally {
     f.db.close();
   }
+});
+
+test('GitHub HTTP 200 token errors become OAuth errors without logging provider payloads', async (t) => {
+  const warnings: string[] = [];
+  let payload: object = { error: 'bad_verification_code', error_description: 'private-detail' };
+  t.mock.method(console, 'warn', (value: string) => warnings.push(value));
+  t.mock.method(globalThis, 'fetch', async () => Response.json(payload));
+  const endpoint = 'https://github.com/login/oauth/access_token';
+  assert.equal((await identityFetch(endpoint)).status, 400);
+  assert.deepEqual(JSON.parse(warnings[0]), {
+    event: 'github_token_rejected',
+    reason: 'bad_verification_code',
+  });
+  payload = { error: 'sensitive-unrecognized-error', error_description: 'private-detail' };
+  assert.equal((await identityFetch(endpoint)).status, 400);
+  assert.doesNotMatch(warnings.join(''), /private-detail|sensitive-unrecognized-error/);
+  assert.equal((await identityFetch('https://oauth.yandex.ru/token')).status, 200);
+  payload = { access_token: 'fixture-token', token_type: 'bearer' };
+  const success = await identityFetch(endpoint);
+  assert.equal(success.status, 200);
+  assert.equal((await success.json()).access_token, 'fixture-token');
 });
 
 test(
