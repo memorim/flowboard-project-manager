@@ -125,6 +125,7 @@ export function createDatabase(filename = resolve('data', 'flowboard.db')) {
     for (const [table, column, definition] of [
       ['accounts', 'email_verified', 'INTEGER NOT NULL DEFAULT 1'],
       ['accounts', 'password_version', 'INTEGER NOT NULL DEFAULT 1'],
+      ['accounts', 'password_enabled', 'INTEGER NOT NULL DEFAULT 1'],
       ['accounts', 'mfa_secret', 'TEXT'],
       ['accounts', 'mfa_pending', 'TEXT'],
       ['accounts', 'mfa_pending_until', 'BIGINT'],
@@ -146,6 +147,7 @@ export function createDatabase(filename = resolve('data', 'flowboard.db')) {
     );
     db.exec(readFileSync(new URL('./account-schema.sql', import.meta.url), 'utf8'));
     db.exec(readFileSync(new URL('./integrations-schema.sql', import.meta.url), 'utf8'));
+    db.exec(readFileSync(new URL('./social-schema.sql', import.meta.url), 'utf8'));
     db.exec(readFileSync(new URL('./access-constraints.sql', import.meta.url), 'utf8'));
     db.exec('COMMIT');
     return db;

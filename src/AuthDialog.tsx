@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { serverApi } from './api';
 
-export type AuthAction = { action: 'verify' | 'reset'; token: string };
+export type AuthAction = {
+  action: 'verify' | 'reset' | 'provider-mfa' | 'provider-error';
+  token: string;
+};
 export function AuthDialog({
   onClose,
   onSignedIn,
@@ -14,16 +17,43 @@ export function AuthDialog({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [view, setView] = useState<'login' | 'register' | 'forgot' | 'verify' | 'reset' | 'mfa'>(
-    initial?.action || 'login',
+    initial?.action === 'provider-mfa'
+      ? 'mfa'
+      : initial?.action === 'provider-error'
+        ? 'login'
+        : initial?.action || 'login',
   );
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState(''),
+    [error, setError] = useState(
+      initial?.action === 'provider-error' ? 'Не удалось подтвердить вход. Повторите попытку.' : '',
+    ),
     [message, setMessage] = useState(''),
     [challenge, setChallenge] = useState('');
   const [config, setConfig] = useState({ registration: false, passwordReset: false, mfa: false });
+  const [providers, setProviders] = useState<Awaited<ReturnType<typeof serverApi.socialProviders>>>(
+    [],
+  );
   useEffect(() => {
     dialog.current?.showModal();
     let active = true;
+    void serverApi
+      .socialProviders()
+      .then((value) => {
+        if (active) setProviders(value);
+      })
+      .catch(() => {});
+    if (initial?.action === 'provider-mfa')
+      void serverApi
+        .socialMfaChallenge()
+        .then((value) => {
+          if (active) setChallenge(value.challenge);
+        })
+        .catch((error) => {
+          if (active) {
+            setError(error.message);
+            setView('login');
+          }
+        });
     serverApi
       .authConfig()
       .then((value) => {
@@ -63,6 +93,19 @@ export function AuthDialog({
           <X />
         </button>
       </div>
+      {view === 'login' && providers.length > 0 && (
+        <div className="auth-providers" aria-label="Другие способы входа">
+          {providers.map((provider) => (
+            <a
+              className="button ghost"
+              key={provider.id}
+              href={'/api/auth/oauth/' + encodeURIComponent(provider.id) + '/start'}
+            >
+              Войти через {provider.label}
+            </a>
+          ))}
+        </div>
+      )}
       <form
         key={view}
         onSubmit={async (event) => {
@@ -176,7 +219,7 @@ export function AuthDialog({
           <button type="button" className="button ghost" onClick={onClose}>
             Отмена
           </button>
-          <button className="button primary" disabled={busy}>
+          <button className="button primary" disabled={busy || (view === 'mfa' && !challenge)}>
             {busy
               ? 'Подождите…'
               : view === 'register'

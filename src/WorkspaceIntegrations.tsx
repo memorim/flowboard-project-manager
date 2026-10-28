@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { serverApi, workspaceId } from './api';
 export function WorkspaceIntegrations() {
+  const [hasPassword, setHasPassword] = useState(true);
   const [directory, setDirectory] = useState<Awaited<ReturnType<typeof serverApi.directory>>>(),
     [billing, setBilling] = useState<Awaited<ReturnType<typeof serverApi.billing>>>(),
     [token, setToken] = useState(''),
@@ -13,6 +14,12 @@ export function WorkspaceIntegrations() {
   };
   useEffect(() => {
     let active = true;
+    void serverApi
+      .account()
+      .then((account) => {
+        if (active) setHasPassword(account.hasPassword);
+      })
+      .catch(() => {});
     Promise.all([serverApi.directory(), serverApi.billing()])
       .then(([d, b]) => {
         if (active) {
@@ -69,23 +76,27 @@ export function WorkspaceIntegrations() {
                 const data = new FormData(e.currentTarget);
                 void run(async () => {
                   const result = await serverApi.createDirectoryToken(
-                    String(data.get('password')),
+                    String(data.get('password') || ''),
                     String(data.get('role')),
                   );
                   setToken(result.token);
                 });
               }}
             >
-              <label>
-                Текущий пароль
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  autoComplete="current-password"
-                  maxLength={128}
-                />
-              </label>
+              {hasPassword ? (
+                <label>
+                  Текущий пароль
+                  <input
+                    type="password"
+                    name="password"
+                    required
+                    autoComplete="current-password"
+                    maxLength={128}
+                  />
+                </label>
+              ) : (
+                <p>Создание токена доступно в течение 5 минут после входа через провайдера.</p>
+              )}
               <label>
                 Роль новых сотрудников
                 <select name="role">

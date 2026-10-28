@@ -11,7 +11,16 @@ import { installAccountRoutes, type AccountOptions } from './account-routes.js';
 const cookieName = 'flowboard_session';
 export const sessionLifetime = 24 * 60 * 60 * 1000;
 const loopbackHosts = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
-export const emailSchema = z.string().trim().toLowerCase().email().max(254);
+export const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email()
+  .max(254)
+  .refine(
+    (value) => !value.endsWith('@identity.flowboard.invalid'),
+    'Используйте действующий адрес почты',
+  );
 export const passwordSchema = z.string().min(15).max(128);
 const accountSchema = z
   .object({
@@ -87,6 +96,29 @@ export async function passwordMatches(
     expected = Buffer.from(account.password_hash, 'hex');
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
+export async function confirmCredentials(
+  db: Store,
+  req: Request,
+  account: {
+    member_id: number;
+    password_enabled?: number;
+    password_salt: string;
+    password_hash: string;
+  },
+  password: string,
+) {
+  if (account.password_enabled !== 0) return passwordMatches(account, password);
+  const token = sessionToken(req);
+  if (!token) return false;
+  return Boolean(
+    await db
+      .prepare(
+        'SELECT session_id FROM sessions WHERE token_hash=? AND member_id=? AND created_at>? AND expires_at>?',
+      )
+      .bind(digest(token), account.member_id, Date.now() - 300000, Date.now())
+      .first(),
+  );
+}
 
 export async function createAccount(
   database: Db | Store,
@@ -138,7 +170,7 @@ export async function sessionActor(database: Db | Store, req: Request): Promise<
   if (!token) return null;
   return asStore(database)
     .prepare(
-      'SELECT m.id,m.name,m.role,m.initials,m.color FROM members m JOIN sessions s ON s.member_id=m.id JOIN accounts a ON a.member_id=m.id WHERE s.token_hash=? AND s.expires_at>? AND a.email_verified=1',
+      'SELECT m.id,m.name,m.role,m.initials,m.color FROM members m JOIN sessions s ON s.member_id=m.id JOIN accounts a ON a.member_id=m.id WHERE s.token_hash=? AND s.expires_at>? AND (a.email_verified=1 OR EXISTS(SELECT 1 FROM external_identities e WHERE e.member_id=a.member_id))',
     )
     .bind(digest(token), Date.now())
     .first<Actor>();
@@ -174,15 +206,20 @@ export async function establishSession(
   return db.transaction(async () => {
     const account = await db
       .prepare(
-        'SELECT password_version,email_verified,mfa_secret FROM accounts WHERE member_id=?' +
+        'SELECT password_version,email_verified,mfa_secret,EXISTS(SELECT 1 FROM external_identities e WHERE e.member_id=accounts.member_id) external_auth FROM accounts WHERE member_id=?' +
           lockRows(db),
       )
       .bind(memberId)
-      .first<{ password_version: number; email_verified: number; mfa_secret: string | null }>();
+      .first<{
+        password_version: number;
+        email_verified: number;
+        mfa_secret: string | null;
+        external_auth: number | boolean;
+      }>();
     if (
       !account ||
       account.password_version !== version ||
-      !account.email_verified ||
+      (!account.email_verified && !account.external_auth) ||
       (account.mfa_secret && !mfaPassed)
     )
       throw new HttpError(401, 'Учётные данные изменились. Войдите заново.');
@@ -259,7 +296,7 @@ export function installSessionAuth(
     await takeBudget(db, 'login:account:' + parsed.email, 10, 600000);
     const account = await db
       .prepare(
-        'SELECT member_id,password_salt,password_hash,password_version,email_verified,mfa_secret FROM accounts WHERE email=?',
+        'SELECT member_id,password_salt,password_hash,password_version,email_verified,mfa_secret,password_enabled FROM accounts WHERE email=?',
       )
       .bind(parsed.email)
       .first<{
@@ -268,13 +305,14 @@ export function installSessionAuth(
         password_hash: string;
         password_version: number;
         email_verified: number;
+        password_enabled: number;
         mfa_secret: string | null;
       }>();
     const valid = await passwordMatches(
       account || { password_salt: 'missing-account-salt', password_hash: '0'.repeat(128) },
       parsed.password,
     );
-    if (!account || !valid || !account.email_verified)
+    if (!account || !valid || !account.email_verified || !account.password_enabled)
       return res
         .status(401)
         .json({ message: 'Неверная почта или пароль либо почта ещё не подтверждена' });

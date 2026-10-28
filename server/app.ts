@@ -9,12 +9,18 @@ import { installMailInvitations } from './workspace-integrations.js';
 import { installDirectory } from './directory.js';
 import { installBilling, type BillingOptions } from './billing.js';
 import { takeBudget } from './rate-limit.js';
+import { installSocialLogin, type SocialOptions } from './social-login.js';
 import { flowApi, type Actor } from '../src/flow-api.js';
 import { authConfiguration, installSessionAuth, sessionActor, type AuthMode } from './auth.js';
 export function createApp(
   db: Db | Store = createDatabase(),
   log?: LogSink,
-  options: { authMode?: AuthMode; accounts?: AccountOptions; billing?: BillingOptions } = {},
+  options: {
+    authMode?: AuthMode;
+    accounts?: AccountOptions;
+    billing?: BillingOptions;
+    social?: SocialOptions;
+  } = {},
 ): Express {
   const settings = authConfiguration({
     ...process.env,
@@ -57,6 +63,11 @@ export function createApp(
     next();
   });
   app.locals.mail = installSessionAuth(app, sql, settings, options.accounts);
+  if (settings.mode === 'session')
+    installSocialLogin(app, sql, settings, {
+      ...options.social,
+      key: options.social?.key || options.accounts?.key,
+    });
   if (settings.mode === 'session') installMailInvitations(app, sql, settings, app.locals.mail);
   if (settings.mode === 'session') installDirectory(app, sql, settings, app.locals.mail);
   if (settings.mode === 'session')

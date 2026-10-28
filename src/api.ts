@@ -98,7 +98,21 @@ export const serverApi = {
   verifyMfa: (challenge: string, code: string) =>
     request('/api/auth/mfa/verify', { method: 'POST', body: JSON.stringify({ challenge, code }) }),
   account: () =>
-    request<{ id: number; name: string; email: string; mfaEnabled: boolean }>('/api/auth/account'),
+    request<{
+      id: number;
+      name: string;
+      email: string | null;
+      mfaEnabled: boolean;
+      hasPassword: boolean;
+      identities: { provider: string; label: string }[];
+    }>('/api/auth/account'),
+  socialProviders: () => request<{ id: string; label: string }[]>('/api/auth/oauth/providers'),
+  socialMfaChallenge: () => request<{ challenge: string }>('/api/auth/oauth/mfa-challenge'),
+  linkProvider: (id: string, password: string) =>
+    request<{ url: string }>('/api/auth/oauth/' + encodeURIComponent(id) + '/link', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
   sessions: () =>
     request<
       {

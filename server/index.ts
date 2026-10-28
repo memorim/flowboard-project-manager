@@ -6,6 +6,8 @@ import { authConfiguration } from './auth.js';
 import { asStore } from './sqlite-adapter.js';
 import { createPostgresStore } from './postgres.js';
 authConfiguration();
+if (process.env.RENDER === 'true' && !process.env.DATABASE_URL)
+  throw new Error('Render requires DATABASE_URL: its filesystem is ephemeral');
 const port = Number(process.env.PORT || 4100),
   file = resolve('data', 'flowboard.db'),
   db = process.env.DATABASE_URL

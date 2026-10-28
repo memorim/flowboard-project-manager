@@ -353,6 +353,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search),
       action = params.get('auth'),
       token = params.get('token');
+    if (action === 'provider-mfa' || action === 'provider-error') return { action, token: '' };
     return (action === 'verify' || action === 'reset') && token && /^[a-f0-9]{64}$/.test(token)
       ? { action, token }
       : null;
@@ -714,12 +715,8 @@ export default function App() {
               Пространство и участники
             </button>
           )}
-          {session.mode === 'browser' && (
-            <a
-              href="https://memorim-flowboard-live.amusedcorgi34.chatgpt.site"
-              target="_blank"
-              rel="noreferrer"
-            >
+          {session.mode === 'browser' && import.meta.env.VITE_SERVER_URL && (
+            <a href={import.meta.env.VITE_SERVER_URL} target="_blank" rel="noreferrer">
               Командная серверная версия ↗
             </a>
           )}
