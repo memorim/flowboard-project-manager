@@ -177,7 +177,10 @@ test('real accounts enforce ownership, roles, invitation access, conflict detect
   }
 });
 
-test('login rejects cross-site input and limits password guesses', async () => {
+test('login rejects cross-site input and limits password guesses', async (t) => {
+  // Keep expensive password checks in one budget window, even at a real clock boundary.
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
   const db = createDatabase(':memory:');
   try {
     await createAccount(db, { email: 'owner@example.test', name: 'Owner', password });
@@ -222,6 +225,12 @@ test('login rejects cross-site input and limits password guesses', async () => {
       (await request(app).post('/api/auth/login').send({ email: 'owner@example.test', password }))
         .status,
       429,
+    );
+    now += 600000;
+    assert.equal(
+      (await request(app).post('/api/auth/login').send({ email: 'owner@example.test', password }))
+        .status,
+      200,
     );
   } finally {
     db.close();
