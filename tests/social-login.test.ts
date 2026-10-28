@@ -151,6 +151,28 @@ function sessionCookie(res: request.Response) {
   ).split(';')[0];
 }
 
+test('failed provider exchange logs its stage without codes, tokens or credentials', async (t) => {
+  const f = fixture(),
+    warnings: string[] = [];
+  t.mock.method(console, 'warn', (value: string) => warnings.push(value));
+  try {
+    f.defect('network');
+    const flow = await f.start('github');
+    assert.equal((await f.callback(flow)).headers.location, '/?auth=provider-error');
+    assert.deepEqual(JSON.parse(warnings[0]), {
+      event: 'oauth_sign_in_failed',
+      provider: 'github',
+      stage: 'token',
+      code: 'unexpected',
+    });
+    assert.doesNotMatch(warnings.join(''), /fixture-code|fixture-secret|fixture-token/);
+    assert.ok(!warnings.join('').includes(flow.cookie.split('=')[1]));
+    assert.ok(!warnings.join('').includes(flow.url.searchParams.get('state')!));
+  } finally {
+    f.db.close();
+  }
+});
+
 test(
   'real PostgreSQL: two app instances consume one callback atomically; identity/session survive reopening the database',
   { skip: !process.env.FLOW_TEST_DATABASE_URL },

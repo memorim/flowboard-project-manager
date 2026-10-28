@@ -135,6 +135,7 @@ export function installSocialLogin(
   app.post('/api/auth/oauth/:provider/link', (req, res) => start(req, res, true));
   app.get('/api/auth/oauth/:provider/callback', async (req, res) => {
     res.clearCookie(flowCookie, cookieOptions);
+    let stage = 'state';
     try {
       const selected = provider(String(req.params.provider));
       await takeBudget(db, 'oauth-callback:' + req.ip, 30, 600000);
@@ -156,12 +157,15 @@ export function installSocialLogin(
       ).first<Flow>();
       if (!flow) throw new Error('Expired or replayed flow');
       const callback = new URL(settings.publicOrigin! + req.originalUrl);
+      stage = 'token';
       const tokens = await oidc.authorizationCodeGrant(selected.config, callback, {
         expectedState: state,
         pkceCodeVerifier: decrypt(flow.verifier, requireKey(key)),
         ...(selected.oidc ? { expectedNonce: flow.nonce, idTokenExpected: true } : {}),
       });
+      stage = 'profile';
       const profile = await selected.profile(tokens);
+      stage = 'account';
       const result = await db.transaction(async () => {
         // The provider subject is the identity. Email/name matches never link accounts.
         const existing = await q(
@@ -238,13 +242,15 @@ export function installSocialLogin(
         return res.redirect('/?auth=provider-mfa');
       }
       return res.redirect('/');
-    } catch {
+    } catch (error) {
       console.warn(
         JSON.stringify({
           event: 'oauth_sign_in_failed',
           provider: available.some((item) => item.id === req.params.provider)
             ? req.params.provider
             : 'unknown',
+          stage,
+          code: error instanceof oidc.ClientError ? error.code || 'unexpected' : 'unexpected',
         }),
       );
       res.redirect('/?auth=provider-error');
