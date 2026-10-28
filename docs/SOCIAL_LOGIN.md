@@ -1,12 +1,12 @@
 # Вход через провайдеров
 
-Сервер поддерживает почту и пароль, Google, Яндекс, GitHub и Telegram. Кнопки внешнего входа появляются только после настройки соответствующего приложения. Встроенных общих ключей нет.
+Сервер поддерживает почту и пароль, Google, Яндекс и GitHub. Кнопки внешнего входа появляются только после настройки соответствующего приложения. Встроенных общих ключей нет.
 
 ## Подключение
 
-1. Зарегистрируйте серверное приложение у провайдера. Для Telegram используйте современный OIDC Login, с Client ID и Client Secret.
-2. Укажите точный callback из таблицы, без wildcard. Для Telegram добавьте адрес сайта в Allowed URLs.
-3. Сохраните `FLOW_<PROVIDER>_CLIENT_ID` и `FLOW_<PROVIDER>_CLIENT_SECRET` в секретах хостинга. Названия провайдеров: `GOOGLE`, `YANDEX`, `GITHUB`, `TELEGRAM`.
+1. Зарегистрируйте серверное приложение у провайдера.
+2. Укажите точный callback из таблицы, без wildcard.
+3. Сохраните `FLOW_<PROVIDER>_CLIENT_ID` и `FLOW_<PROVIDER>_CLIENT_SECRET` в секретах хостинга. Названия провайдеров: `GOOGLE`, `YANDEX`, `GITHUB`.
 4. Установите постоянный `FLOW_APP_KEY` (32 случайных байта в base64) и `FLOW_PUBLIC_ORIGIN=https://memorim-flowboard.onrender.com`. Перезапустите сервер.
 5. Проверьте вход и повторный вход настоящим аккаунтом, привязку, выход и MFA. Автоматические тесты не заменяют этот шаг.
 
@@ -15,7 +15,6 @@
 | Google | `https://memorim-flowboard.onrender.com/api/auth/oauth/google/callback` | `openid profile` |
 | Яндекс | `https://memorim-flowboard.onrender.com/api/auth/oauth/yandex/callback` | `login:info` |
 | GitHub | `https://memorim-flowboard.onrender.com/api/auth/oauth/github/callback` | `read:user` |
-| Telegram | `https://memorim-flowboard.onrender.com/api/auth/oauth/telegram/callback` | `openid profile` |
 
 При другом размещении замените origin целиком. Токены и секреты нельзя добавлять в `VITE_*`, Git, скриншоты или README. Частично заданная конфигурация останавливает сервер.
 
@@ -32,6 +31,8 @@
 
 ## Проверки
 
-`node --test --import tsx tests/social-login.test.ts` проверяет четыре адаптера, реальную проверку подписи ID token локальными RSA-ключами, PKCE, неверные nonce/issuer/audience/подпись/срок, state/cookie, replay, отозванную сессию привязки, отсутствие объединения по email, MFA и недавнюю повторную авторизацию. Внешние запросы заменены контролируемым transport fixture.
+Иконки Google и GitHub взяты из официальных наборов [Google Identity](https://developers.google.com/identity/branding-guidelines) и [GitHub Brand Toolkit](https://brand.github.com/foundations/logo). Они хранятся в приложении: браузер не отправляет запросы на сторонние сайты при открытии формы входа.
+
+`node --test --import tsx tests/social-login.test.ts` проверяет три адаптера, реальную проверку подписи ID token локальными RSA-ключами, PKCE, неверные nonce/issuer/audience/подпись/срок, state/cookie, replay, отозванную сессию привязки, отсутствие объединения по email, MFA и недавнюю повторную авторизацию. Внешние запросы заменены контролируемым transport fixture.
 
 `pnpm test:e2e:auth` проверяет почтовый сценарий, MFA, отображение подключённых способов входа и ошибку callback в настольном и мобильном браузере. Все БД тестов изолированы от `data/` и публичной Neon.

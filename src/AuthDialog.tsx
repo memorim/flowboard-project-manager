@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { serverApi } from './api';
+import { ProviderIcon } from './ProviderIcon';
 
 export type AuthAction = {
   action: 'verify' | 'reset' | 'provider-mfa' | 'provider-error';
@@ -16,6 +17,7 @@ export function AuthDialog({
   initial?: AuthAction | null;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const emailInput = useRef<HTMLInputElement>(null);
   const [view, setView] = useState<'login' | 'register' | 'forgot' | 'verify' | 'reset' | 'mfa'>(
     initial?.action === 'provider-mfa'
       ? 'mfa'
@@ -97,13 +99,24 @@ export function AuthDialog({
         <div className="auth-providers" aria-label="Другие способы входа">
           {providers.map((provider) => (
             <a
-              className="button ghost"
+              className="auth-provider"
               key={provider.id}
               href={'/api/auth/oauth/' + encodeURIComponent(provider.id) + '/start'}
+              aria-label={'Войти через ' + provider.label}
             >
-              Войти через {provider.label}
+              <ProviderIcon id={provider.id} />
+              <span>{provider.label}</span>
             </a>
           ))}
+          <button
+            className="auth-provider"
+            type="button"
+            aria-label="Войти по почте"
+            onClick={() => emailInput.current?.focus()}
+          >
+            <ProviderIcon id="email" />
+            <span>Почта</span>
+          </button>
         </div>
       )}
       <form
@@ -174,6 +187,7 @@ export function AuthDialog({
             Электронная почта
             <input
               name="email"
+              ref={emailInput}
               type="email"
               autoComplete="username"
               maxLength={254}

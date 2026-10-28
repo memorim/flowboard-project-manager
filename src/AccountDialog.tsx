@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { serverApi } from './api';
+import { ProviderIcon } from './ProviderIcon';
 
 export function AccountDialog({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -75,7 +76,10 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           <h3>Способы входа</h3>
           {providers.map((provider) =>
             account.identities.some((identity) => identity.provider === provider.id) ? (
-              <p key={provider.id}>{provider.label}: подключён</p>
+              <p className="provider-connection" key={provider.id}>
+                <ProviderIcon id={provider.id} />
+                {provider.label}: подключён
+              </p>
             ) : (
               <form
                 key={provider.id}
@@ -100,7 +104,8 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
                     />
                   </label>
                 )}
-                <button className="button ghost" disabled={busy}>
+                <button className="button ghost provider-connection" disabled={busy}>
+                  <ProviderIcon id={provider.id} />
                   Подключить {provider.label}
                 </button>
               </form>

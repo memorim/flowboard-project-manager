@@ -22,7 +22,7 @@ async function reset() {
     social: {
       providers: socialProviders(
         Object.fromEntries(
-          ['GOOGLE', 'YANDEX', 'GITHUB', 'TELEGRAM'].flatMap((id) => [
+          ['GOOGLE', 'YANDEX', 'GITHUB'].flatMap((id) => [
             [`FLOW_${id}_CLIENT_ID`, 'browser-fixture'],
             [`FLOW_${id}_CLIENT_SECRET`, 'browser-fixture-secret'],
           ]),

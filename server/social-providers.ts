@@ -1,6 +1,6 @@
 import * as oidc from 'openid-client';
 import { z } from 'zod';
-export const providerIds = ['google', 'yandex', 'github', 'telegram'] as const;
+export const providerIds = ['google', 'yandex', 'github'] as const;
 export type ProviderId = (typeof providerIds)[number];
 export type Profile = { subject: string; name: string };
 export type SocialProvider = {
@@ -37,30 +37,17 @@ export async function identityFetch(input: RequestInfo | URL, init?: RequestInit
     }
   const body = Buffer.concat(chunks);
   let status = response.status;
-  const provider =
-    String(input) === definitions.github.token_endpoint
-      ? 'github'
-      : String(input) === definitions.telegram.token_endpoint
-        ? 'telegram'
-        : undefined;
-  // These providers return token errors with HTTP 200; OAuth libraries expect 4xx.
-  if (provider && status === 200) {
+  // GitHub returns token errors with HTTP 200; OAuth libraries expect a 4xx response.
+  if (String(input) === definitions.github.token_endpoint && status === 200) {
     const token = JSON.parse(body.toString('utf8')) as { error?: unknown } | null;
     if (typeof token?.error === 'string') {
       status = 400;
       const reason = z
-        .enum([
-          'bad_verification_code',
-          'incorrect_client_credentials',
-          'redirect_uri_mismatch',
-          'invalid_grant',
-          'invalid_client',
-          'invalid_request',
-        ])
+        .enum(['bad_verification_code', 'incorrect_client_credentials', 'redirect_uri_mismatch'])
         .safeParse(token.error);
       console.warn(
         JSON.stringify({
-          event: provider + '_token_rejected',
+          event: 'github_token_rejected',
           reason: reason.success ? reason.data : 'provider_error',
         }),
       );
@@ -97,15 +84,6 @@ const definitions = {
     scope: 'read:user',
     oidc: false,
   },
-  telegram: {
-    label: 'Telegram',
-    issuer: 'https://oauth.telegram.org',
-    authorization_endpoint: 'https://oauth.telegram.org/auth',
-    token_endpoint: 'https://oauth.telegram.org/token',
-    jwks_uri: 'https://oauth.telegram.org/.well-known/jwks.json',
-    scope: 'openid profile',
-    oidc: true,
-  },
 };
 export function socialProviders(
   env: NodeJS.ProcessEnv = process.env,
@@ -134,7 +112,7 @@ export function socialProviders(
       },
       clientId,
       { client_secret: secret, id_token_signed_response_alg: 'RS256' },
-      id === 'telegram' ? oidc.ClientSecretBasic(secret) : oidc.ClientSecretPost(secret),
+      oidc.ClientSecretPost(secret),
     );
     config.timeout = 15;
     if (definition.oidc) oidc.enableNonRepudiationChecks(config);

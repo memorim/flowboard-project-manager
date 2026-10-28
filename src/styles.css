@@ -1197,9 +1197,90 @@ textarea:focus-visible {
 
 .auth-providers {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
-  margin-block: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-block: 0 24px;
+}
+.auth-provider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 100px;
+  padding: 12px 4px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+.auth-provider:hover {
+  transform: translateY(-2px);
+  border-color: #b8b5a9;
+  box-shadow: 0 6px 16px #24231f0d;
+}
+.auth-provider:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+.auth-provider:focus-visible {
+  outline: 3px solid var(--coral);
+  outline-offset: 3px;
+}
+.provider-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.provider-icon-github {
+  padding: 3px;
+}
+.provider-icon-yandex {
+  border-radius: 50%;
+  background: #fc3f1d;
+  color: #fff;
+  font:
+    500 29px Arial,
+    sans-serif;
+}
+.provider-icon-mail {
+  border-radius: 12px;
+  background: #f1f0ea;
+}
+.provider-icon-mail svg {
+  width: 23px;
+  height: 23px;
+}
+.provider-connection {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.provider-connection .provider-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-provider {
+    transition: none;
+  }
+  .auth-provider:hover {
+    transform: none;
+  }
 }
 .account-dialog section {
   border-top: 1px solid var(--line);
