@@ -1,6 +1,6 @@
 import * as oidc from 'openid-client';
 import { z } from 'zod';
-export const providerIds = ['google', 'yandex', 'github', 'telegram'] as const;
+export const providerIds = ['google', 'yandex', 'github'] as const;
 export type ProviderId = (typeof providerIds)[number];
 export type Profile = { subject: string; name: string };
 export type SocialProvider = {
@@ -78,20 +78,11 @@ const definitions = {
   },
   github: {
     label: 'GitHub',
-    issuer: 'https://github.com',
+    issuer: 'https://github.com/login/oauth',
     authorization_endpoint: 'https://github.com/login/oauth/authorize',
     token_endpoint: 'https://github.com/login/oauth/access_token',
     scope: 'read:user',
     oidc: false,
-  },
-  telegram: {
-    label: 'Telegram',
-    issuer: 'https://oauth.telegram.org',
-    authorization_endpoint: 'https://oauth.telegram.org/auth',
-    token_endpoint: 'https://oauth.telegram.org/token',
-    jwks_uri: 'https://oauth.telegram.org/.well-known/jwks.json',
-    scope: 'openid profile',
-    oidc: true,
   },
 };
 export function socialProviders(
@@ -121,7 +112,7 @@ export function socialProviders(
       },
       clientId,
       { client_secret: secret, id_token_signed_response_alg: 'RS256' },
-      id === 'telegram' ? oidc.ClientSecretBasic(secret) : oidc.ClientSecretPost(secret),
+      oidc.ClientSecretPost(secret),
     );
     config.timeout = 15;
     if (definition.oidc) oidc.enableNonRepudiationChecks(config);

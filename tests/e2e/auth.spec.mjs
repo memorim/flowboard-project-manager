@@ -12,12 +12,14 @@ test('configured provider choices and a failed callback are usable on desktop an
     ['google', 'Google'],
     ['yandex', 'Яндекс'],
     ['github', 'GitHub'],
-    ['telegram', 'Telegram'],
   ])
     await expect(
       dialog.getByRole('link', { name: 'Войти через ' + label, exact: true }),
     ).toHaveAttribute('href', '/api/auth/oauth/' + id + '/start');
   await expect(dialog.getByLabel('Электронная почта')).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Войти через Telegram' })).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Войти по почте', exact: true }).click();
+  await expect(dialog.getByLabel('Электронная почта')).toBeFocused();
   expect(new URL(page.url()).searchParams.has('auth')).toBe(false);
 });
 

@@ -22,7 +22,7 @@ const jwk = {
   alg: 'RS256',
 };
 const environments = Object.fromEntries(
-  ['GOOGLE', 'YANDEX', 'GITHUB', 'TELEGRAM'].flatMap((id) => [
+  ['GOOGLE', 'YANDEX', 'GITHUB'].flatMap((id) => [
     [`FLOW_${id}_CLIENT_ID`, 'fixture-client'],
     [`FLOW_${id}_CLIENT_SECRET`, 'fixture-secret'],
   ]),
@@ -50,18 +50,13 @@ function fixture() {
           '/api/auth/oauth/' +
           (expected.hostname === 'accounts.google.com'
             ? 'google'
-            : expected.hostname === 'oauth.telegram.org'
-              ? 'telegram'
-              : expected.hostname === 'github.com'
-                ? 'github'
-                : 'yandex') +
+            : expected.hostname === 'github.com'
+              ? 'github'
+              : 'yandex') +
           '/callback',
       );
       if (defect === 'network') throw new Error('Fixture token endpoint unavailable');
-      const issuer =
-        expected.hostname === 'accounts.google.com'
-          ? 'https://accounts.google.com'
-          : 'https://oauth.telegram.org';
+      const issuer = 'https://accounts.google.com';
       const now = Math.floor(Date.now() / 1000);
       const claims = {
         sub: subject,
@@ -83,7 +78,7 @@ function fixture() {
         access_token: defect === 'missing-token' ? undefined : 'fixture-token',
         token_type: 'bearer',
         expires_in: 300,
-        ...(['accounts.google.com', 'oauth.telegram.org'].includes(expected.hostname)
+        ...(expected.hostname === 'accounts.google.com'
           ? { id_token: encoded + '.' + signature.toString('base64url') }
           : {}),
       });
@@ -132,7 +127,8 @@ function fixture() {
         '/api/auth/oauth/' +
         provider +
         '/callback?code=fixture-code&state=' +
-        expected.searchParams.get('state');
+        expected.searchParams.get('state') +
+        (provider === 'github' ? '&iss=https%3A%2F%2Fgithub.com%2Flogin%2Foauth' : '');
       return { cookie: cookie(res), path, url: expected };
     },
     callback(flow: { cookie: string; path: string }) {
@@ -150,6 +146,19 @@ function sessionCookie(res: request.Response) {
     ),
   ).split(';')[0];
 }
+
+test('GitHub RFC 9207 issuer is pinned; a different issuer is rejected before token exchange', async () => {
+  const f = fixture();
+  try {
+    const flow = await f.start('github');
+    const path = flow.path.replace('github.com%2Flogin%2Foauth', 'attacker.example.test');
+    assert.equal((await f.callback({ ...flow, path })).headers.location, '/?auth=provider-error');
+    assert.equal(f.calls, 0);
+    assert.equal((await f.callback(await f.start('github'))).headers.location, '/');
+  } finally {
+    f.db.close();
+  }
+});
 
 test('failed provider exchange logs its stage without codes, tokens or credentials', async (t) => {
   const f = fixture(),
@@ -276,23 +285,28 @@ test(
 
 test('only fully configured providers are offered; partial config fails closed', async () => {
   assert.deepEqual(socialProviders({}), []);
+  assert.deepEqual(
+    socialProviders({ FLOW_TELEGRAM_CLIENT_ID: 'retired', FLOW_TELEGRAM_CLIENT_SECRET: 'retired' }),
+    [],
+  );
   assert.throws(() => socialProviders({ FLOW_GOOGLE_CLIENT_ID: 'id' }));
   const f = fixture();
   try {
     const response = await request(f.app).get('/api/auth/oauth/providers');
     assert.deepEqual(
       response.body.map((p: { id: string }) => p.id),
-      ['google', 'yandex', 'github', 'telegram'],
+      ['google', 'yandex', 'github'],
     );
+    assert.equal((await request(f.app).get('/api/auth/oauth/telegram/start')).status, 404);
     assert.doesNotMatch(JSON.stringify(response.body), /secret|fixture-client/);
   } finally {
     f.db.close();
   }
 });
-test('all four providers use code + PKCE and stable subjects, without granting sample workspace write access', async () => {
+test('all three providers use code + PKCE and stable subjects, without granting sample workspace write access', async () => {
   const f = fixture();
   try {
-    for (const id of ['google', 'yandex', 'github', 'telegram'] as const) {
+    for (const id of ['google', 'yandex', 'github'] as const) {
       const flow = await f.start(id),
         res = await f.callback(flow);
       assert.equal(res.headers.location, '/');
@@ -322,12 +336,12 @@ test('all four providers use code + PKCE and stable subjects, without granting s
         account.body.id,
       );
     }
-    assert.equal(f.db.prepare('SELECT COUNT(*) n FROM external_identities').get()!.n, 4);
+    assert.equal(f.db.prepare('SELECT COUNT(*) n FROM external_identities').get()!.n, 3);
     assert.equal(
       f.db
         .prepare('SELECT COUNT(*) n FROM accounts WHERE password_enabled=0 AND email_verified=0')
         .get()!.n,
-      4,
+      3,
     );
     f.db
       .prepare('UPDATE accounts SET email=? WHERE member_id=?')
