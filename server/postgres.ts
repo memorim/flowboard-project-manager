@@ -144,6 +144,12 @@ export async function createPostgresStore(
           '003_integrations',
           readFileSync(new URL('./integrations-schema.sql', import.meta.url), 'utf8'),
         ],
+        [
+          '004_social_login',
+          readFileSync(new URL('./postgres-social.sql', import.meta.url), 'utf8') +
+            '\n' +
+            readFileSync(new URL('./social-schema.sql', import.meta.url), 'utf8'),
+        ],
       ];
       for (const [version, sql] of migrations) {
         const checksum = createHash('sha256').update(sql).digest('hex');

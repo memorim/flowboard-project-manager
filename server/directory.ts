@@ -7,7 +7,7 @@ import {
   jsonInput,
   emailSchema,
   requireActor,
-  passwordMatches,
+  confirmCredentials,
   lockRows,
   type AuthSettings,
 } from './auth.js';
@@ -96,7 +96,7 @@ export function installDirectory(
       req,
       z
         .object({
-          password: z.string().min(1).max(128),
+          password: z.string().max(128).default(''),
           role: z.enum(['editor', 'viewer']).default('viewer'),
         })
         .strict(),
@@ -104,11 +104,17 @@ export function installDirectory(
     const actor = await requireActor(db, req);
     await takeBudget(db, 'directory-token:' + actor.id, 5, 600000);
     const credentials = await q(
-      'SELECT password_salt,password_hash,password_version FROM accounts WHERE member_id=?',
+      'SELECT member_id,password_enabled,password_salt,password_hash,password_version FROM accounts WHERE member_id=?',
       actor.id,
-    ).first<{ password_salt: string; password_hash: string; password_version: number }>();
-    if (!credentials || !(await passwordMatches(credentials, data.password)))
-      throw new HttpError(401, 'Неверный пароль');
+    ).first<{
+      member_id: number;
+      password_enabled: number;
+      password_salt: string;
+      password_hash: string;
+      password_version: number;
+    }>();
+    if (!credentials || !(await confirmCredentials(db, req, credentials, data.password)))
+      throw new HttpError(401, 'Подтвердите пароль или повторно войдите через провайдера');
     const token = randomToken(),
       created = Date.now(),
       expires = created + 90 * 86400000;

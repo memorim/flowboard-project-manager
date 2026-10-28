@@ -10,6 +10,7 @@ import {
   passwordSchema,
   passwordHash,
   passwordMatches,
+  confirmCredentials,
   sessionToken,
   requireActor,
   input,
@@ -39,6 +40,7 @@ type Account = {
   password_salt: string;
   password_hash: string;
   password_version: number;
+  password_enabled: number;
   mfa_secret: string | null;
   mfa_pending: string | null;
   mfa_pending_until: number | null;
@@ -200,7 +202,7 @@ export function installAccountRoutes(
     await budget(req, 'forgot', 10);
     await takeBudget(db, 'forgot-email:' + data.email, 3, 3600000);
     const user = await q('SELECT * FROM accounts WHERE email=?', data.email).first<Account>();
-    if (user) await sendAction(user, 'reset');
+    if (user && user.password_enabled !== 0) await sendAction(user, 'reset');
     res.status(202).json(generic);
   });
   for (const kind of ['verify', 'reset'] as const) {
@@ -220,7 +222,11 @@ export function installAccountRoutes(
         ).first<{ member_id: number; password_version: number }>();
         if (!action) throw new HttpError(410, 'Ссылка истекла или уже использована');
         const user = await account(action.member_id);
-        if (!user || user.password_version !== action.password_version)
+        if (
+          !user ||
+          user.password_enabled === 0 ||
+          user.password_version !== action.password_version
+        )
           throw new HttpError(410, 'Ссылка недействительна');
         if (kind === 'verify' && !(await passwordMatches(user, data.password)))
           throw new HttpError(400, 'Укажите пароль, выбранный при регистрации');
@@ -237,7 +243,8 @@ export function installAccountRoutes(
             Date.now(),
             current?.password_version ?? -1,
           ).first();
-          if (!fresh) throw new HttpError(410, 'Ссылка истекла или уже использована');
+          if (!fresh || current?.password_enabled === 0)
+            throw new HttpError(410, 'Ссылка истекла или уже использована');
           await q(
             'UPDATE account_actions SET used_at=? WHERE token_hash=?',
             Date.now(),
@@ -265,7 +272,14 @@ export function installAccountRoutes(
     res.json({
       id: actor.id,
       name: actor.name,
-      email: user.email,
+      email: user.password_enabled === 0 ? null : user.email,
+      hasPassword: user.password_enabled !== 0,
+      identities: (
+        await q(
+          'SELECT provider,label FROM external_identities WHERE member_id=? ORDER BY provider',
+          actor.id,
+        ).all()
+      ).results,
       emailVerified: Boolean(user.email_verified),
       mfaEnabled: Boolean(user.mfa_secret),
     });
@@ -305,10 +319,11 @@ export function installAccountRoutes(
   app.post('/api/auth/mfa/setup', async (req, res) => {
     requireKey(key);
     const actor = await requireActor(db, req),
-      data = input(req, z.object({ password: z.string().min(1).max(128) }).strict());
+      data = input(req, z.object({ password: z.string().max(128).default('') }).strict());
     await budget(req, 'mfa-setup');
     const old = (await account(actor.id))!;
-    if (!(await passwordMatches(old, data.password))) throw new HttpError(401, 'Неверный пароль');
+    if (!(await confirmCredentials(db, req, old, data.password)))
+      throw new HttpError(401, 'Подтвердите пароль или повторно войдите через провайдера');
     const secret = mfaSecret();
     await db.transaction(async () => {
       const user = (await account(actor.id, true))!;
@@ -324,7 +339,7 @@ export function installAccountRoutes(
     });
     const uri =
       'otpauth://totp/' +
-      encodeURIComponent('Flowboard:' + old.email) +
+      encodeURIComponent('Flowboard:' + (old.password_enabled === 0 ? actor.name : old.email)) +
       '?secret=' +
       secret +
       '&issuer=Flowboard&algorithm=SHA1&digits=6&period=30';
@@ -391,11 +406,12 @@ export function installAccountRoutes(
     const actor = await requireActor(db, req),
       data = input(
         req,
-        z.object({ password: z.string().min(1).max(128), code: codeSchema }).strict(),
+        z.object({ password: z.string().max(128).default(''), code: codeSchema }).strict(),
       );
     await budget(req, 'mfa-disable');
     const old = (await account(actor.id))!;
-    if (!(await passwordMatches(old, data.password))) throw new HttpError(401, 'Неверный пароль');
+    if (!(await confirmCredentials(db, req, old, data.password)))
+      throw new HttpError(401, 'Подтвердите пароль или повторно войдите через провайдера');
     const token = await db.transaction(async () => {
       const user = (await account(actor.id, true))!;
       if (

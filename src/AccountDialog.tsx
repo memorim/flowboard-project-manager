@@ -8,6 +8,9 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   );
   const [sessions, setSessions] = useState<Awaited<ReturnType<typeof serverApi.sessions>>>([]);
   const [config, setConfig] = useState({ mfa: false });
+  const [providers, setProviders] = useState<Awaited<ReturnType<typeof serverApi.socialProviders>>>(
+    [],
+  );
   const [setup, setSetup] = useState<Awaited<ReturnType<typeof serverApi.setupMfa>> | null>(null);
   const [codes, setCodes] = useState<string[]>([]);
   const [busy, setBusy] = useState(false),
@@ -21,6 +24,10 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     dialog.current?.showModal();
     void refresh().catch((error) => setError(error.message));
+    void serverApi
+      .socialProviders()
+      .then(setProviders)
+      .catch(() => {});
     void serverApi
       .authConfig()
       .then(setConfig)
@@ -56,7 +63,51 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           ×
         </button>
       </div>
-      <p>{account?.email}</p>
+      <p>{account?.email || account?.name}</p>
+      {account?.hasPassword === false && (
+        <p>
+          Для изменения способов входа и защиты повторно войдите через провайдера. Подтверждение
+          действует 5 минут.
+        </p>
+      )}
+      {providers.length > 0 && account && (
+        <section>
+          <h3>Способы входа</h3>
+          {providers.map((provider) =>
+            account.identities.some((identity) => identity.provider === provider.id) ? (
+              <p key={provider.id}>{provider.label}: подключён</p>
+            ) : (
+              <form
+                key={provider.id}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const password = String(new FormData(event.currentTarget).get('password') || '');
+                  void run(async () => {
+                    const result = await serverApi.linkProvider(provider.id, password);
+                    window.location.assign(result.url);
+                  });
+                }}
+              >
+                {account.hasPassword && (
+                  <label>
+                    Текущий пароль
+                    <input
+                      name="password"
+                      type="password"
+                      autoComplete="current-password"
+                      maxLength={128}
+                      required
+                    />
+                  </label>
+                )}
+                <button className="button ghost" disabled={busy}>
+                  Подключить {provider.label}
+                </button>
+              </form>
+            ),
+          )}
+        </section>
+      )}
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -71,23 +122,25 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
               onSubmit={(e) => {
                 e.preventDefault();
                 const form = e.currentTarget,
-                  password = String(new FormData(form).get('password'));
+                  password = String(new FormData(form).get('password') || '');
                 void run(async () => {
                   setSetup(await serverApi.setupMfa(password));
                   form.reset();
                 });
               }}
             >
-              <label>
-                Подтвердите пароль
-                <input
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  maxLength={128}
-                  required
-                />
-              </label>
+              {account?.hasPassword !== false && (
+                <label>
+                  Подтвердите пароль
+                  <input
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    maxLength={128}
+                    required
+                  />
+                </label>
+              )}
               <button className="button primary" disabled={busy}>
                 Настроить защиту
               </button>
@@ -150,7 +203,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
                     data = new FormData(form);
                   void run(async () => {
                     await serverApi.disableMfa(
-                      String(data.get('password')),
+                      String(data.get('password') || ''),
                       String(data.get('code')),
                     );
                     setCodes([]);
@@ -159,16 +212,18 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
                   });
                 }}
               >
-                <label>
-                  Пароль
-                  <input
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    maxLength={128}
-                  />
-                </label>
+                {account?.hasPassword !== false && (
+                  <label>
+                    Пароль
+                    <input
+                      name="password"
+                      type="password"
+                      autoComplete="current-password"
+                      required
+                      maxLength={128}
+                    />
+                  </label>
+                )}
                 <label>
                   Код приложения или резервный код
                   <input name="code" autoComplete="one-time-code" required maxLength={32} />

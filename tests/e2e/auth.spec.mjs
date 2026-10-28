@@ -1,5 +1,26 @@
 import { test, expect } from '../fixtures.mjs';
 
+test('configured provider choices and a failed callback are usable on desktop and mobile', async ({
+  page,
+}) => {
+  await page.goto('/?auth=provider-error');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('alert')).toHaveText(
+    'Не удалось подтвердить вход. Повторите попытку.',
+  );
+  for (const [id, label] of [
+    ['google', 'Google'],
+    ['yandex', 'Яндекс'],
+    ['github', 'GitHub'],
+    ['telegram', 'Telegram'],
+  ])
+    await expect(
+      dialog.getByRole('link', { name: 'Войти через ' + label, exact: true }),
+    ).toHaveAttribute('href', '/api/auth/oauth/' + id + '/start');
+  await expect(dialog.getByLabel('Электронная почта')).toBeVisible();
+  expect(new URL(page.url()).searchParams.has('auth')).toBe(false);
+});
+
 test('real session login, private task persistence and logout work without actor switching', async ({
   page,
   context,

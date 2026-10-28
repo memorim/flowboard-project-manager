@@ -3,6 +3,7 @@ import { createApp } from '../server/app.ts';
 import { createDatabase } from '../server/db.ts';
 import { createAccount } from '../server/auth.ts';
 import { randomBytes } from 'node:crypto';
+import { socialProviders } from '../server/social-providers.ts';
 
 process.env.FLOW_PUBLIC_ORIGIN = 'http://127.0.0.1:4141';
 let db,
@@ -18,6 +19,19 @@ async function reset() {
     password: 'Correct-fixture-password-2026',
   });
   app = createApp(db, () => {}, {
+    social: {
+      providers: socialProviders(
+        Object.fromEntries(
+          ['GOOGLE', 'YANDEX', 'GITHUB', 'TELEGRAM'].flatMap((id) => [
+            [`FLOW_${id}_CLIENT_ID`, 'browser-fixture'],
+            [`FLOW_${id}_CLIENT_SECRET`, 'browser-fixture-secret'],
+          ]),
+        ),
+        async () => {
+          throw new Error('External identity network is disabled in browser fixtures');
+        },
+      ),
+    },
     accounts: {
       key: randomBytes(32),
       sendMail: async (mail) => {

@@ -23,6 +23,8 @@ const tables = [
   'directory_group_members',
   'workspace_payments',
   'workspace_plans',
+  'external_identities',
+  'oauth_flows',
 ];
 const identities = [
   'members',
