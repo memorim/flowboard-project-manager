@@ -13,6 +13,20 @@ types.setTypeParser(20, (value) => {
 });
 types.setTypeParser(1700, Number);
 type Transaction = { client: PoolClient; changes: number; lastId: number };
+export function migrationSource(parts: string[]) {
+  const normalized = parts.map((part) => part.replaceAll('\r\n', '\n'));
+  const hash = (value: string) => createHash('sha256').update(value).digest('hex');
+  const sql = normalized.join('\n'),
+    checksum = hash(sql);
+  // Earlier Windows runs could have CRLF throughout a file or only its final newline.
+  // Only these exact newline variants are accepted; SQL edits still fail closed.
+  const compatible = new Set([
+    checksum,
+    hash(normalized.map((part) => part.replaceAll('\n', '\r\n')).join('\n')),
+    hash(normalized.map((part) => part.replace(/\n$/, '\r\n')).join('\n')),
+  ]);
+  return { sql, checksum, compatible };
+}
 export function postgresSql(sql: string, values: unknown[], previous = { changes: 0, lastId: 0 }) {
   let text = sql
     .replace(/\bINSERT OR IGNORE INTO\b/gi, 'INSERT INTO')
@@ -137,29 +151,35 @@ export async function createPostgresStore(
       await client.query(
         'CREATE TABLE IF NOT EXISTS schema_migrations(version TEXT PRIMARY KEY,checksum TEXT NOT NULL,applied_at TIMESTAMPTZ NOT NULL DEFAULT now())',
       );
-      const migrations = [
-        ['001_core', readFileSync(new URL('./postgres-schema.sql', import.meta.url), 'utf8')],
-        ['002_accounts', readFileSync(new URL('./account-schema.sql', import.meta.url), 'utf8')],
+      const migrations: [string, string[]][] = [
+        ['001_core', [readFileSync(new URL('./postgres-schema.sql', import.meta.url), 'utf8')]],
+        ['002_accounts', [readFileSync(new URL('./account-schema.sql', import.meta.url), 'utf8')]],
         [
           '003_integrations',
-          readFileSync(new URL('./integrations-schema.sql', import.meta.url), 'utf8'),
+          [readFileSync(new URL('./integrations-schema.sql', import.meta.url), 'utf8')],
         ],
         [
           '004_social_login',
-          readFileSync(new URL('./postgres-social.sql', import.meta.url), 'utf8') +
-            '\n' +
+          [
+            readFileSync(new URL('./postgres-social.sql', import.meta.url), 'utf8'),
             readFileSync(new URL('./social-schema.sql', import.meta.url), 'utf8'),
+          ],
         ],
       ];
-      for (const [version, sql] of migrations) {
-        const checksum = createHash('sha256').update(sql).digest('hex');
+      for (const [version, parts] of migrations) {
+        const { sql, checksum, compatible } = migrationSource(parts);
         const found = await client.query(
           'SELECT checksum FROM schema_migrations WHERE version=$1',
           [version],
         );
         if (found.rows[0]) {
-          if (found.rows[0].checksum !== checksum)
+          if (!compatible.has(found.rows[0].checksum))
             throw new Error('Applied migration checksum mismatch: ' + version);
+          if (found.rows[0].checksum !== checksum)
+            await client.query('UPDATE schema_migrations SET checksum=$1 WHERE version=$2', [
+              checksum,
+              version,
+            ]);
         } else {
           await client.query(sql);
           await client.query('INSERT INTO schema_migrations(version,checksum) VALUES($1,$2)', [

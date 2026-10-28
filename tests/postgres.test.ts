@@ -3,10 +3,94 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { Pool } from 'pg';
-import { createPostgresStore, postgresSql } from '../server/postgres.js';
+import { createPostgresStore, postgresSql, migrationSource } from '../server/postgres.js';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { createApp } from '../server/app.js';
 import { createAccount } from '../server/auth.js';
 import { takeBudget } from '../server/rate-limit.js';
+
+test('migration checksums are portable across LF, CRLF and PowerShell final newlines, without accepting changed SQL', () => {
+  const parts = ['CREATE TABLE a(id INTEGER);\n', 'CREATE TABLE b(\n id INTEGER\n);\n'];
+  const expected = migrationSource(parts);
+  for (const variant of [
+    parts,
+    parts.map((s) => s.replaceAll('\n', '\r\n')),
+    parts.map((s) => s.replace(/\n$/, '\r\n')),
+  ]) {
+    const historical = createHash('sha256').update(variant.join('\n')).digest('hex');
+    assert.equal(migrationSource(variant).checksum, expected.checksum);
+    assert.ok(expected.compatible.has(historical));
+  }
+  assert.ok(
+    !expected.compatible.has(
+      createHash('sha256').update(parts.join('\n').replace('INTEGER', 'TEXT')).digest('hex'),
+    ),
+  );
+  const actual = migrationSource(
+    ['postgres-social.sql', 'social-schema.sql'].map((file) =>
+      readFileSync(new URL('../server/' + file, import.meta.url), 'utf8'),
+    ),
+  );
+  assert.ok(
+    actual.compatible.has('d536d891a18c93cd3c3ef40f99aebd6cf5278d6726dc0b1579b7f9df1252f493'),
+    'accept the exact failed Windows-initialized migration fingerprint',
+  );
+});
+
+test(
+  'real PostgreSQL: a historical newline checksum normalizes without losing rows, while a SQL edit is rejected',
+  { skip: !process.env.FLOW_TEST_DATABASE_URL },
+  async () => {
+    const url = process.env.FLOW_TEST_DATABASE_URL!,
+      schema = 'flow_eol_' + randomUUID().replaceAll('-', '').slice(0, 24);
+    let db = await createPostgresStore(url, schema);
+    const pool = new Pool({ connectionString: url });
+    try {
+      await db
+        .prepare("UPDATE workspaces SET name='Preserved before EOL migration' WHERE id=1")
+        .run();
+      const parts = ['postgres-social.sql', 'social-schema.sql'].map((file) =>
+        readFileSync(new URL('../server/' + file, import.meta.url), 'utf8').replaceAll(
+          '\r\n',
+          '\n',
+        ),
+      );
+      const old = createHash('sha256')
+        .update(parts.map((part) => part.replace(/\n$/, '\r\n')).join('\n'))
+        .digest('hex');
+      await db
+        .prepare("UPDATE schema_migrations SET checksum=? WHERE version='004_social_login'")
+        .bind(old)
+        .run();
+      await db.close();
+      db = await createPostgresStore(url, schema);
+      assert.equal(
+        (await db.prepare('SELECT name FROM workspaces WHERE id=1').first<{ name: string }>())!
+          .name,
+        'Preserved before EOL migration',
+      );
+      assert.equal(
+        (await db
+          .prepare("SELECT checksum FROM schema_migrations WHERE version='004_social_login'")
+          .first<{ checksum: string }>())!.checksum,
+        migrationSource(parts).checksum,
+      );
+      await db
+        .prepare("UPDATE schema_migrations SET checksum=? WHERE version='004_social_login'")
+        .bind('0'.repeat(64))
+        .run();
+      await assert.rejects(() => createPostgresStore(url, schema), /checksum mismatch/);
+    } finally {
+      await db.close();
+      try {
+        await pool.query('DROP SCHEMA "' + schema + '" CASCADE');
+      } finally {
+        await pool.end();
+      }
+    }
+  },
+);
 
 test('PostgreSQL binding preserves quoted question marks and never inserts user text into SQL', () => {
   const query = postgresSql(
