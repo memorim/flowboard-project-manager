@@ -45,6 +45,7 @@ test('real SMTP transport sends queued mail, retries a failure, and clears encry
       SMTP_HOST: '127.0.0.1',
       SMTP_PORT: String((server.address() as { port: number }).port),
       SMTP_FROM: 'Flowboard <no-reply@example.test>',
+      FLOW_PUBLIC_ORIGIN: 'https://flowboard.example.test',
     })!,
     key = randomBytes(32);
   let queue = mailQueue(db, key, sender);
@@ -73,6 +74,7 @@ test('real SMTP transport sends queued mail, retries a failure, and clears encry
     assert.equal(sent!.payload, '');
     assert.match(received, /token-fixture/);
     assert.match(received, /Message-ID: <flowboard-/i);
+    assert.match(received, /https:\/\/flowboard\.example\.test\/privacy\.html/);
     await queue.run();
     assert.equal((received.match(/token-fixture/g) || []).length, 1);
   } finally {
