@@ -34,7 +34,11 @@ export function smtpSender(env: NodeJS.ProcessEnv = process.env): MailSender | u
       from,
       to: message.to,
       subject: message.subject,
-      text: message.text,
+      text:
+        message.text +
+        (env.FLOW_PUBLIC_ORIGIN
+          ? '\n\nКонфиденциальность: ' + new URL('/privacy.html', env.FLOW_PUBLIC_ORIGIN).href
+          : ''),
       messageId:
         '<flowboard-' +
         message.id +
