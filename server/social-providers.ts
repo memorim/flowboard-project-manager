@@ -19,6 +19,8 @@ export async function identityFetch(input: RequestInfo | URL, init?: RequestInit
     redirect: 'error',
     signal: AbortSignal.any([AbortSignal.timeout(15000), ...(init?.signal ? [init.signal] : [])]),
   });
+  if (String(input) === definitions.github.token_endpoint && response.status !== 200)
+    console.warn(JSON.stringify({ event: 'github_token_http_failed', status: response.status }));
   const reader = response.body?.getReader();
   let size = 0;
   const chunks: Uint8Array[] = [];
