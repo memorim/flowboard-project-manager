@@ -132,7 +132,8 @@ function fixture() {
         '/api/auth/oauth/' +
         provider +
         '/callback?code=fixture-code&state=' +
-        expected.searchParams.get('state');
+        expected.searchParams.get('state') +
+        (provider === 'github' ? '&iss=https%3A%2F%2Fgithub.com%2Flogin%2Foauth' : '');
       return { cookie: cookie(res), path, url: expected };
     },
     callback(flow: { cookie: string; path: string }) {
@@ -150,6 +151,19 @@ function sessionCookie(res: request.Response) {
     ),
   ).split(';')[0];
 }
+
+test('GitHub RFC 9207 issuer is pinned; a different issuer is rejected before token exchange', async () => {
+  const f = fixture();
+  try {
+    const flow = await f.start('github');
+    const path = flow.path.replace('github.com%2Flogin%2Foauth', 'attacker.example.test');
+    assert.equal((await f.callback({ ...flow, path })).headers.location, '/?auth=provider-error');
+    assert.equal(f.calls, 0);
+    assert.equal((await f.callback(await f.start('github'))).headers.location, '/');
+  } finally {
+    f.db.close();
+  }
+});
 
 test('failed provider exchange logs its stage without codes, tokens or credentials', async (t) => {
   const f = fixture(),
