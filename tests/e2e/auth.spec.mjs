@@ -38,8 +38,15 @@ test('real session login, private task persistence and logout work without actor
   expect(
     (await context.cookies()).find((cookie) => cookie.name === 'flowboard_session')?.httpOnly,
   ).toBe(true);
-  await page.getByRole('button', { name: 'Пространство и участники' }).click();
+  await page.getByRole('button', { name: 'Новая задача', exact: true }).click();
   let dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('status')).toContainText('доступ только для просмотра');
+  await expect(dialog.getByRole('button', { name: 'Создать задачу', exact: true })).toHaveCount(0);
+  expect(
+    (
+      await context.request.post('/api/tasks?workspace=1', { data: { title: 'Forbidden task' } })
+    ).status(),
+  ).toBe(403);
   await dialog.getByLabel('Название нового пространства').fill('Authenticated team');
   await dialog.getByRole('button', { name: 'Создать пространство', exact: true }).click();
   await expect(

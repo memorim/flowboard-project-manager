@@ -143,7 +143,11 @@ test('synthetic owner, editor and viewer use isolated workspaces and keep a conf
     await expect(
       viewer.getByRole('combobox', { name: 'Рабочее пространство', exact: true }),
     ).toHaveValue(wid);
-    await expect(viewer.getByRole('button', { name: 'Новая задача', exact: true })).toBeDisabled();
+    await viewer.getByRole('button', { name: 'Новая задача', exact: true }).click();
+    await expect(viewer.getByRole('dialog').getByRole('status')).toContainText(
+      'доступ только для просмотра',
+    );
+    await viewer.getByRole('button', { name: 'Закрыть управление пространством' }).click();
     await nav(viewer, 'Задачи');
     await expect(viewer.getByRole('heading', { name: title, exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Пространство и участники', exact: true }).click();
@@ -155,7 +159,11 @@ test('synthetic owner, editor and viewer use isolated workspaces and keep a conf
       dialog.getByRole('combobox', { name: 'Роль: Илья Власов', exact: true }),
     ).toHaveValue('viewer');
     await editor.getByRole('button', { name: 'Обновить данные', exact: true }).click();
-    await expect(editor.getByRole('button', { name: 'Новая задача', exact: true })).toBeDisabled();
+    await editor.getByRole('button', { name: 'Новая задача', exact: true }).click();
+    await expect(editor.getByRole('dialog').getByRole('status')).toContainText(
+      'доступ только для просмотра',
+    );
+    await editor.getByRole('button', { name: 'Закрыть управление пространством' }).click();
     await dialog
       .locator('.membership-row')
       .filter({ hasText: 'Марк Левин' })

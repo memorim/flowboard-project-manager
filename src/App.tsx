@@ -655,8 +655,8 @@ export default function App() {
           ) : (
             <button
               className="button primary"
-              disabled={loading || !writable}
-              onClick={() => setEditor(null)}
+              disabled={loading || busy || Boolean(error)}
+              onClick={() => (writable ? setEditor(null) : setManage(true))}
             >
               <CirclePlus />
               Новая задача
