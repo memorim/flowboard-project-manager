@@ -21,10 +21,12 @@ export async function workspaceReads({ req, db, workspace, space, role }: ReadSc
       const search = (url.searchParams.get('search') || '').trim().slice(0, 200),
         status = url.searchParams.get('status') || '',
         project = Number(url.searchParams.get('project') || 0),
-        assignee = url.searchParams.get('assignee') || '';
+        assignee = url.searchParams.get('assignee') || '',
+        month = url.searchParams.get('month') || '';
       const limit = Number(url.searchParams.get('limit') || 40),
         offset = Number(url.searchParams.get('offset') || 0);
       if (
+        (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) ||
         !Number.isSafeInteger(project) ||
         project < 0 ||
         !Number.isSafeInteger(limit) ||
@@ -57,6 +59,10 @@ export async function workspaceReads({ req, db, workspace, space, role }: ReadSc
       if (assignee) {
         clauses.push(assignee === 'none' ? 't.assignee_id IS NULL' : 't.assignee_id=?');
         if (assignee !== 'none') values.push(Number(assignee));
+      }
+      if (month) {
+        clauses.push('substr(t.due_date,1,7)=?');
+        values.push(month);
       }
       const where = ' WHERE ' + clauses.join(' AND '),
         [rows, count] = await db.batch([

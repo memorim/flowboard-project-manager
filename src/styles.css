@@ -40,7 +40,7 @@ button {
   position: sticky;
   top: 0;
   height: calc(100vh / var(--page-zoom, 1));
-  overflow: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   padding: 24px 17px 18px;
@@ -111,7 +111,7 @@ button {
   padding: 2px 7px;
   background: #383832;
   border-radius: 10px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .sidebar-section {
   margin-top: 28px;
@@ -122,7 +122,7 @@ button {
   align-items: center;
   padding: 0 11px;
   color: #66665f;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.11em;
@@ -154,7 +154,7 @@ button {
 }
 .profile small {
   color: #71716b;
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 2px;
 }
 main {
@@ -197,7 +197,7 @@ main {
 }
 .search kbd {
   color: #96958c;
-  font-size: 10px;
+  font-size: 12px;
 }
 .icon-button {
   display: grid;
@@ -274,7 +274,7 @@ main {
 }
 .eyebrow {
   color: #99978e;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -305,7 +305,7 @@ main {
   border-radius: 50%;
   background: #292923;
   color: white;
-  font-size: 9px;
+  font-size: 12px;
 }
 .avatar {
   display: grid;
@@ -315,13 +315,13 @@ main {
   height: 34px;
   border-radius: 50%;
   color: #292821;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
 }
 .avatar.small {
   width: 28px;
   height: 28px;
-  font-size: 8px;
+  font-size: 12px;
 }
 .metrics {
   display: grid;
@@ -371,7 +371,7 @@ main {
 }
 .metrics span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .metrics strong {
   margin: 2px 0;
@@ -379,7 +379,7 @@ main {
 }
 .metrics small {
   color: #aaa89f;
-  font-size: 8px;
+  font-size: 12px;
 }
 .metrics .positive {
   color: var(--green);
@@ -412,7 +412,7 @@ main {
   border: 0;
   background: none;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
 }
 .panel-head button svg {
@@ -442,12 +442,12 @@ main {
   display: block;
 }
 .project-info strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 .project-info span,
 .project-stat span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
   margin-top: 2px;
 }
 .progress {
@@ -463,14 +463,14 @@ main {
   border-radius: inherit;
 }
 .project-stat strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 .project-date {
   display: flex;
   gap: 5px;
   align-items: center;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 .project-date svg {
   width: 13px;
@@ -484,7 +484,7 @@ main {
 .activity-list p {
   margin: 0;
   color: #63625b;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 .activity-list p strong {
@@ -493,7 +493,7 @@ main {
 .activity-list time {
   display: block;
   color: #aaa89f;
-  font-size: 8px;
+  font-size: 12px;
   margin-top: 2px;
 }
 .board-title {
@@ -519,7 +519,7 @@ main {
   padding: 0 5px;
 }
 .board-column > header strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 .board-column > header b {
   display: grid;
@@ -529,7 +529,7 @@ main {
   background: #e9e7e0;
   border-radius: 7px;
   color: #89877f;
-  font-size: 8px;
+  font-size: 12px;
 }
 .board-column > header svg {
   justify-self: end;
@@ -575,7 +575,7 @@ main {
 .priority {
   padding: 4px 7px;
   border-radius: 6px;
-  font-size: 7px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -614,7 +614,7 @@ main {
   background: transparent;
   border-radius: 6px;
   text-align: left;
-  font-size: 9px;
+  font-size: 12px;
   cursor: pointer;
 }
 .card-menu button:hover {
@@ -625,14 +625,14 @@ main {
 }
 .task-card h4 {
   margin: 12px 0 5px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
 }
 .task-card > p {
   min-height: 31px;
   margin: 0 0 12px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.55;
 }
 .project-chip {
@@ -640,7 +640,7 @@ main {
   align-items: center;
   gap: 6px;
   color: #77766e;
-  font-size: 8px;
+  font-size: 12px;
 }
 .project-chip i {
   width: 6px;
@@ -660,7 +660,7 @@ main {
   align-items: center;
   gap: 5px;
   color: #7c7a72;
-  font-size: 8px;
+  font-size: 12px;
 }
 .add-inline {
   display: flex;
@@ -672,7 +672,7 @@ main {
   border-radius: 9px;
   background: transparent;
   color: #85837b;
-  font-size: 9px;
+  font-size: 12px;
   cursor: pointer;
 }
 .add-inline svg {
@@ -713,7 +713,7 @@ main {
 }
 .modal label {
   color: #67665e;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
 }
 .modal input,
@@ -726,7 +726,7 @@ main {
   background: white;
   padding: 11px 12px;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 12px;
   resize: vertical;
 }
 .modal input:focus,
@@ -749,7 +749,7 @@ main {
 .form-error {
   margin: 0;
   color: #c9472f;
-  font-size: 10px;
+  font-size: 12px;
 }
 .loader {
   display: grid;
@@ -757,7 +757,7 @@ main {
   align-content: center;
   min-height: calc(calc(100vh / var(--page-zoom, 1)) - 72px);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .loader span {
   width: 28px;
@@ -772,7 +772,7 @@ main {
     transform: rotate(360deg);
   }
 }
-@media (max-width: 1100px) and (max-width: 800px), (min-width: 801px) and (max-width: 1375px) {
+@media (max-width: 1375px) {
   .metrics {
     grid-template-columns: 1fr 1fr;
   }
@@ -783,7 +783,7 @@ main {
     grid-template-columns: repeat(4, 260px);
   }
 }
-@media (max-width: 760px), (min-width: 801px) and (max-width: 950px) {
+@media (max-width: 950px) {
   .app-shell,
   .app-shell.sidebar-hidden {
     display: block;
@@ -862,7 +862,7 @@ main {
 .task-status {
   display: grid;
   gap: 5px;
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 12px;
 }
 .task-status select,
@@ -887,7 +887,7 @@ main {
 .task-filters label {
   display: grid;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .team-grid {
   display: grid;
@@ -900,20 +900,87 @@ main {
 .team-grid p {
   font-size: 13px;
 }
-.calendar-list {
-  display: grid;
-  gap: 12px;
+.calendar-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
 }
-.calendar-list p {
+.calendar-grid {
+  width: 100%;
+  min-width: 700px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.calendar-grid caption {
+  padding: 18px;
+  text-align: left;
+  font-weight: 700;
+}
+.calendar-grid th {
+  padding: 12px;
+  background: #ebeae4;
+  text-align: left;
+}
+.calendar-grid td {
+  height: 120px;
+  padding: 8px;
+  vertical-align: top;
+  border: 1px solid var(--line);
+}
+.calendar-grid time {
+  display: block;
+  margin-bottom: 8px;
   font-size: 13px;
+  font-weight: 700;
+}
+.calendar-grid .calendar-empty {
+  background: #f5f4ef;
+}
+.calendar-grid .calendar-today {
+  box-shadow: inset 0 3px var(--coral);
+}
+.calendar-task {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  margin: 6px 0;
+  border: 0;
+  border-left: 3px solid var(--coral);
+  border-radius: 5px;
+  background: #f5f4ef;
+  text-align: left;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  cursor: pointer;
+}
+.calendar-task small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.calendar-done {
+  border-color: var(--green);
+}
+.calendar-in_progress {
+  border-color: var(--purple);
+}
+.task-filters input {
+  min-height: 38px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  padding: 8px;
+  border-radius: 7px;
+  background: white;
 }
 .actor-select {
   display: grid;
   gap: 10px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .workspace-note {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
 }
 .task-dialog {
@@ -936,14 +1003,14 @@ main {
   margin-left: 12px;
 }
 .topbar > a {
-  font-size: 11px;
+  font-size: 12px;
   text-decoration: none;
 }
 .activity-list p {
-  font-size: 11px !important;
+  font-size: 12px !important;
 }
 .activity-list time {
-  font-size: 10px !important;
+  font-size: 12px !important;
 }
 button:focus-visible,
 a:focus-visible,
@@ -958,10 +1025,10 @@ button:disabled {
 .task-card[draggable='true'] {
   cursor: grab;
 }
-@media (max-width: 760px), (min-width: 801px) and (max-width: 950px) {
+@media (max-width: 950px) {
   .topbar .primary {
     display: flex;
-    font-size: 10px;
+    font-size: 12px;
     padding: 9px;
   }
   .topbar .primary svg {
@@ -1076,7 +1143,7 @@ button:disabled {
 .invite-banner a {
   color: #663b17;
 }
-@media (max-width: 760px), (min-width: 801px) and (max-width: 950px) {
+@media (max-width: 950px) {
   .workspace-bar {
     padding: 14px 18px;
     gap: 8px;
@@ -1088,7 +1155,7 @@ button:disabled {
     max-width: 100%;
   }
   .workspace-bar .button {
-    font-size: 11px;
+    font-size: 12px;
     padding: 9px;
   }
   .membership-row {

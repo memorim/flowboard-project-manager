@@ -1,5 +1,38 @@
 import { test, expect } from '../fixtures.mjs';
 
+test('guests get populated editable demo data without writing to the server', async ({
+  page,
+  request,
+}) => {
+  const writes = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/tasks') && request.method() !== 'GET')
+      writes.push(request.url());
+  });
+  await page.goto('/');
+  await expect(page.locator('.project-list article')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Новая задача', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Название', { exact: true }).fill('Guest sandbox task');
+  await dialog.getByRole('button', { name: 'Создать задачу', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Guest sandbox task', exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole('textbox', { name: 'Поиск задач' }).fill('Guest sandbox task');
+  await expect(
+    page.getByRole('heading', { name: 'Guest sandbox task', exact: true }),
+  ).toBeVisible();
+  expect(writes).toEqual([]);
+  expect(
+    (await request.post('/api/tasks', { data: { title: 'Forbidden guest write' } })).status(),
+  ).toBe(401);
+  await page.getByRole('button', { name: 'Пройти демонстрацию', exact: true }).click();
+  await expect(
+    page.getByRole('dialog').getByRole('button', { name: 'Создать учебную задачу', exact: true }),
+  ).toBeVisible();
+});
+
 test('configured provider choices and a failed callback are usable on desktop and mobile', async ({
   page,
 }) => {

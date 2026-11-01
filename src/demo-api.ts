@@ -215,6 +215,7 @@ export const demoApi = {
               .toLowerCase()
               .includes(filters.search.toLowerCase().trim())) &&
           (!filters.project || t.project_id === Number(filters.project)) &&
+          (!filters.month || t.due_date.startsWith(filters.month + '-')) &&
           (!filters.assignee ||
             (filters.assignee === 'none'
               ? t.assignee_id === null

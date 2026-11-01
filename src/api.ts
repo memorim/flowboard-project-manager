@@ -209,4 +209,13 @@ export const serverApi = {
   deleteTask: (id: number, version: number) =>
     request(`/api/tasks/${id}`, { method: 'DELETE', body: JSON.stringify({ version }) }),
 };
-export const api = import.meta.env.VITE_DEMO_MODE === 'true' ? demoApi : serverApi;
+export const browserBuild = import.meta.env.VITE_DEMO_MODE === 'true';
+export let api = browserBuild ? demoApi : serverApi;
+export async function prepareApi() {
+  if (browserBuild) return;
+  const spaces = await serverApi.workspaces();
+  if (!spaces.some((space) => space.id === workspaceId())) selectWorkspace(1);
+  const session = await serverApi.session();
+  // Guest edits stay in the existing browser sandbox; server authorization is unchanged.
+  api = session.mode === 'authenticated' && !session.user ? demoApi : serverApi;
+}

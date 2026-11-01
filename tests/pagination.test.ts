@@ -26,6 +26,11 @@ test('bounded pages, stable order, filters, membership scope and internal fields
       '/api/tasks/page?search=Page%20fixture%2084&status=todo&assignee=1&project=1',
     );
     assert.equal(filtered.body.total, 1);
+    const month = await request(app).get('/api/tasks/page?month=2030-01&limit=100');
+    assert.equal(month.body.total, 85);
+    assert.equal(month.body.items.length, 85);
+    assert.equal((await request(app).get('/api/tasks/page?month=2030-02')).body.total, 0);
+    assert.equal((await request(app).get('/api/tasks/page?month=2030-13')).status, 400);
     assert.equal((await request(app).get('/api/tasks/page?limit=101')).status, 400);
     assert.equal((await request(app).get('/api/tasks/page?offset=-1')).status, 400);
     assert.equal((await request(app).get('/api/tasks/page?workspace=999')).status, 404);

@@ -77,6 +77,7 @@ export interface TaskFilters {
   status?: string;
   project?: string;
   assignee?: string;
+  month?: string;
   limit?: number;
   offset?: number;
 }

@@ -14,7 +14,8 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { api, serverApi, workspaceId, selectWorkspace } from './api';
+import { api, serverApi, workspaceId, selectWorkspace, prepareApi, browserBuild } from './api';
+import { TaskCalendar } from './TaskCalendar';
 import { AuthDialog, type AuthAction } from './AuthDialog';
 import { AccountDialog } from './AccountDialog';
 import { GuidedDemo } from './GuidedDemo';
@@ -107,7 +108,7 @@ function TaskCard({
               disabled={!writable || busy}
               className="danger"
               onClick={() => {
-                if (window.confirm(`Удалить демонстрационную задачу «${task.title}»?`))
+                if (window.confirm(`Переместить задачу «${task.title}» в корзину?`))
                   onDelete(task.id);
               }}
             >
@@ -347,6 +348,10 @@ export default function App() {
     [inviteToken, setInviteToken] = useState(''),
     [returnTo, setReturnTo] = useState('/');
   const [guide, setGuide] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [loginOpen, setLoginOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [authAction, setAuthAction] = useState<AuthAction | null>(() => {
@@ -385,19 +390,34 @@ export default function App() {
       setProjects([]);
     }
     try {
+      await prepareApi();
+      if (number !== requestNumber.current) return;
       const spaces = await api.workspaces();
       if (number !== requestNumber.current) return;
       if (!spaces.some((w) => w.id === workspaceId())) selectWorkspace(1);
       const [dash, list, meta, user] = await Promise.all([
         api.dashboard(),
-        (view === 'trash' ? api.trashPage : api.taskPage)({
-          search: query,
-          project,
-          assignee,
-          status: statusFilter,
-          limit: 40,
-          offset: taskOffset,
-        }),
+        (async () => {
+          const filters = { search: query, project, assignee, status: statusFilter };
+          if (view !== 'calendar')
+            return (view === 'trash' ? api.trashPage : api.taskPage)({
+              ...filters,
+              limit: 40,
+              offset: taskOffset,
+            });
+          const page = await api.taskPage({ ...filters, month: calendarMonth, limit: 100 });
+          while (page.items.length < page.total && number === requestNumber.current) {
+            const next = await api.taskPage({
+              ...filters,
+              month: calendarMonth,
+              limit: 100,
+              offset: page.items.length,
+            });
+            if (!next.items.length) break;
+            page.items.push(...next.items);
+          }
+          return page;
+        })(),
         api.meta(),
         api.session(),
       ]);
@@ -422,23 +442,20 @@ export default function App() {
     }
   };
   useEffect(() => {
-    setSidebar(
-      !window.matchMedia('(max-width:760px), (min-width:801px) and (max-width:950px)').matches,
-    );
+    setSidebar(!window.matchMedia('(max-width:950px)').matches);
     setInviteToken(new URLSearchParams(window.location.hash.slice(1)).get('invite') || '');
     setReturnTo(window.location.pathname + window.location.search + window.location.hash);
   }, []);
   useEffect(() => {
     const timer = setTimeout(() => void load(), query ? 180 : 0);
     return () => clearTimeout(timer);
-  }, [query, project, assignee, statusFilter, taskOffset, view]);
+  }, [query, project, assignee, statusFilter, taskOffset, view, calendarMonth]);
   const writable = !error && session.canWrite;
   const signIn = '/signin-with-chatgpt?return_to=' + encodeURIComponent(returnTo);
   const go = (v: typeof view) => {
     if (v !== view) setTaskOffset(0);
     setView(v);
-    if (window.matchMedia('(max-width:760px), (min-width:801px) and (max-width:950px)').matches)
-      setSidebar(false);
+    if (window.matchMedia('(max-width:950px)').matches) setSidebar(false);
   };
   const visible = useMemo(
     () =>
@@ -482,6 +499,7 @@ export default function App() {
     setStatusFilter('');
   };
   const identityChanged = async () => {
+    if (window.matchMedia('(max-width:950px)').matches) setSidebar(false);
     setAccountOpen(false);
     setEditor(undefined);
     setManage(false);
@@ -587,6 +605,8 @@ export default function App() {
                 </button>
               )}
             </p>
+          ) : session.mode === 'browser' && !browserBuild ? (
+            <p>Гостевая демоверсия</p>
           ) : (
             <label className="actor-select">
               Демо-участник
@@ -640,7 +660,11 @@ export default function App() {
               placeholder="Найти задачу или проект…"
             />
           </div>
-          {session.mode === 'chatgpt' && !session.user ? (
+          {loading && !dashboard ? (
+            <button className="button primary" disabled>
+              Загрузка…
+            </button>
+          ) : session.mode === 'chatgpt' && !session.user ? (
             <a className="button primary" href={signIn} target="_top">
               Войти для изменений
             </a>
@@ -666,11 +690,8 @@ export default function App() {
         <div className="workspace-bar">
           <button
             className="button ghost"
-            onClick={() =>
-              session.mode === 'authenticated' && !session.user
-                ? setLoginOpen(true)
-                : setGuide(true)
-            }
+            disabled={loading || Boolean(error)}
+            onClick={() => setGuide(true)}
           >
             Пройти демонстрацию
           </button>
@@ -721,6 +742,14 @@ export default function App() {
             </a>
           )}
         </div>
+        {session.mode === 'browser' && !browserBuild && (
+          <div className="invite-banner">
+            <span>Попробуйте задачи без регистрации. Демо сохраняется только в этом браузере.</span>
+            <button className="button primary" onClick={() => setLoginOpen(true)}>
+              Войти
+            </button>
+          </div>
+        )}
         {inviteToken && (
           <div className="invite-banner">
             <strong>Приглашение в команду</strong>
@@ -743,7 +772,8 @@ export default function App() {
               >
                 Принять приглашение
               </button>
-            ) : session.mode === 'authenticated' ? (
+            ) : session.mode === 'authenticated' ||
+              (session.mode === 'browser' && !browserBuild) ? (
               <button className="button primary" onClick={() => setLoginOpen(true)}>
                 Войти для принятия приглашения
               </button>
@@ -911,7 +941,11 @@ export default function App() {
               <div>
                 <span className="eyebrow">Участники</span>
                 <h1>Команда</h1>
-                <p>Демонстрационные профили и распределение задач.</p>
+                <p>
+                  {session.mode === 'browser' || session.mode === 'demo'
+                    ? 'Демо-участники и распределение задач.'
+                    : 'Участники пространства и распределение задач.'}
+                </p>
               </div>
             </section>
             <div className="team-grid">
@@ -957,6 +991,23 @@ export default function App() {
               </div>
             </section>
             <div className="task-filters">
+              {view === 'calendar' && (
+                <label>
+                  Месяц
+                  <input
+                    type="month"
+                    aria-label="Месяц календаря"
+                    value={calendarMonth}
+                    required
+                    onChange={(e) => {
+                      if (/^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value)) {
+                        setCalendarMonth(e.target.value);
+                        setTaskOffset(0);
+                      }
+                    }}
+                  />
+                </label>
+              )}
               <label>
                 Проект
                 <select
@@ -1013,26 +1064,28 @@ export default function App() {
                 Сбросить фильтры
               </button>
             </div>
-            <nav className="pagination" aria-label="Страницы задач">
-              <button
-                className="button ghost"
-                disabled={loading || taskOffset === 0}
-                onClick={() => setTaskOffset((v) => Math.max(0, v - 40))}
-              >
-                Предыдущие задачи
-              </button>
-              <span>
-                {taskTotal ? taskOffset + 1 : 0}–{Math.min(taskOffset + 40, taskTotal)} из{' '}
-                {taskTotal}
-              </span>
-              <button
-                className="button ghost"
-                disabled={loading || taskOffset + 40 >= taskTotal}
-                onClick={() => setTaskOffset((v) => v + 40)}
-              >
-                Следующие задачи
-              </button>
-            </nav>
+            {view !== 'calendar' && (
+              <nav className="pagination" aria-label="Страницы задач">
+                <button
+                  className="button ghost"
+                  disabled={loading || taskOffset === 0}
+                  onClick={() => setTaskOffset((v) => Math.max(0, v - 40))}
+                >
+                  Предыдущие задачи
+                </button>
+                <span>
+                  {taskTotal ? taskOffset + 1 : 0}–{Math.min(taskOffset + 40, taskTotal)} из{' '}
+                  {taskTotal}
+                </span>
+                <button
+                  className="button ghost"
+                  disabled={loading || taskOffset + 40 >= taskTotal}
+                  onClick={() => setTaskOffset((v) => v + 40)}
+                >
+                  Следующие задачи
+                </button>
+              </nav>
+            )}
             {!visible.length && <p role="status">Задач по выбранным условиям нет.</p>}
             {view === 'trash' ? (
               <div className="trash-list">
@@ -1059,22 +1112,11 @@ export default function App() {
                 ))}
               </div>
             ) : view === 'calendar' ? (
-              <div className="calendar-list">
-                {Array.from(new Set(visible.map((t) => t.due_date)))
-                  .sort()
-                  .map((date) => (
-                    <section className="panel" key={date}>
-                      <h2>{shortDate(date)}</h2>
-                      {visible
-                        .filter((t) => t.due_date === date)
-                        .map((t) => (
-                          <p key={t.id}>
-                            <strong>{t.title}</strong> · {t.project_name} · {statusLabels[t.status]}
-                          </p>
-                        ))}
-                    </section>
-                  ))}
-              </div>
+              <TaskCalendar
+                month={calendarMonth}
+                tasks={visible}
+                onOpen={(task) => (writable ? setEditor(task) : setHistoryTask(task))}
+              />
             ) : (
               <div className="board">
                 {columns.map((status) => (

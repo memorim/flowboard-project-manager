@@ -23,6 +23,8 @@ describe('browser demonstration', () => {
       dueDate: '2030-01-10',
     };
     const task = await demoApi.createTask(body);
+    assert.equal((await demoApi.taskPage({ month: '2030-01', search: body.title })).total, 1);
+    assert.equal((await demoApi.taskPage({ month: '2030-02', search: body.title })).total, 0);
     assert.equal((await demoApi.tasks('Portfolio demo')).length, 1);
     await demoApi.updateTask(task.id, {
       ...body,
