@@ -7,6 +7,76 @@ import { HttpError } from '../src/flow-http.js';
 
 export type Mail = { to: string; subject: string; text: string };
 export type MailSender = (message: Mail & { id: string }) => Promise<void>;
+
+function mailText(message: Mail, env: NodeJS.ProcessEnv) {
+  return (
+    message.text +
+    (env.FLOW_PUBLIC_ORIGIN
+      ? '\n\nКонфиденциальность: ' + new URL('/privacy.html', env.FLOW_PUBLIC_ORIGIN).href
+      : '')
+  );
+}
+
+export function brevoSender(
+  env: NodeJS.ProcessEnv = process.env,
+  request: typeof fetch = fetch,
+): MailSender {
+  const apiKey = env.BREVO_API_KEY || '',
+    email = env.BREVO_FROM_EMAIL || '',
+    name = env.BREVO_FROM_NAME || 'Flowboard';
+  if (
+    !apiKey ||
+    /[\r\n]/.test(apiKey) ||
+    !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(email) ||
+    /[\r\n]/.test(name) ||
+    name.length > 128
+  )
+    throw new Error('Configure BREVO_API_KEY and a verified BREVO_FROM_EMAIL');
+  return async (message) => {
+    const response = await request('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { email, name },
+        to: [{ email: message.to }],
+        subject: message.subject,
+        textContent: mailText(message, env),
+        headers: { 'X-Flowboard-Event': message.id },
+      }),
+      redirect: 'error',
+      signal: AbortSignal.timeout(15000),
+    });
+    // Provider responses can contain personal data. Never include their body or API key in errors.
+    if (response.status !== 201) {
+      await response.body?.cancel();
+      throw new Error('Mail provider did not accept the message');
+    }
+    let result: { messageId?: unknown } | null;
+    try {
+      result = (await response.json()) as { messageId?: unknown } | null;
+    } catch {
+      throw new Error('Mail provider acknowledgement is invalid');
+    }
+    if (!result || typeof result.messageId !== 'string' || !result.messageId)
+      throw new Error('Mail provider acknowledgement is invalid');
+  };
+}
+
+export function mailSender(env: NodeJS.ProcessEnv = process.env): MailSender | undefined {
+  switch (env.FLOW_MAIL_PROVIDER || 'smtp') {
+    case 'smtp':
+      return smtpSender(env);
+    case 'brevo':
+      return brevoSender(env);
+    default:
+      throw new Error('FLOW_MAIL_PROVIDER must be smtp or brevo');
+  }
+}
+
 export function smtpSender(env: NodeJS.ProcessEnv = process.env): MailSender | undefined {
   if (!env.SMTP_HOST) return undefined;
   const port = Number(env.SMTP_PORT || 587),
@@ -34,11 +104,7 @@ export function smtpSender(env: NodeJS.ProcessEnv = process.env): MailSender | u
       from,
       to: message.to,
       subject: message.subject,
-      text:
-        message.text +
-        (env.FLOW_PUBLIC_ORIGIN
-          ? '\n\nКонфиденциальность: ' + new URL('/privacy.html', env.FLOW_PUBLIC_ORIGIN).href
-          : ''),
+      text: mailText(message, env),
       messageId:
         '<flowboard-' +
         message.id +

@@ -29,7 +29,7 @@ import {
   randomToken,
   requireKey,
 } from './account-crypto.js';
-import { mailQueue, smtpSender, type MailSender, type MailQueue } from './mail.js';
+import { mailQueue, mailSender, type MailSender, type MailQueue } from './mail.js';
 import { takeBudget } from './rate-limit.js';
 
 export type AccountOptions = { key?: Buffer; sendMail?: MailSender; registration?: boolean };
@@ -101,7 +101,7 @@ export function installAccountRoutes(
   options: AccountOptions,
 ) {
   const key = options.key || encryptionKey(),
-    mail = mailQueue(db, key, options.sendMail || smtpSender());
+    mail = mailQueue(db, key, options.sendMail || mailSender());
   const registration =
     (options.registration ?? process.env.FLOW_REGISTRATION_ENABLED !== 'false') &&
     mail.enabled &&
