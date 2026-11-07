@@ -1,6 +1,6 @@
 # Revision and release checks
 
-The standalone Node API returns `X-App-Revision` on `/api/health`. Set `APP_REVISION` to the exact 40-character source commit SHA when starting a verified build. Omitted/invalid values report `local-unversioned`; the server does not invent a deployed revision. This operator-supplied header helps detect deployment drift; it is not a signed software attestation.
+The standalone Node API returns `X-App-Revision` on `/api/health`. On Render (`RENDER=true`), it uses `RENDER_GIT_COMMIT` supplied by the hosting platform, so a stale manually set `APP_REVISION` cannot misidentify a new deployment. Outside Render, set `APP_REVISION` to the exact 40-character source commit SHA when starting a verified build. Omitted/invalid values report `local-unversioned`; the server does not invent a deployed revision. The header helps detect deployment drift; it is not a signed software attestation.
 
 After the service is running, use `SMOKE_URL=http://127.0.0.1:4100 EXPECTED_REVISION=<source-sha> pnpm smoke` in a POSIX shell. In PowerShell set `$env:SMOKE_URL` and `$env:EXPECTED_REVISION` before `pnpm smoke`. A non-200 response, wrong content type/body, missing revision or revision mismatch exits nonzero. The check is read-only and never creates/deletes application data. It deliberately rejects redirects and credential-bearing URLs.
 

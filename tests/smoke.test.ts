@@ -35,3 +35,35 @@ test('smoke checks real HTTP health and fails on a mismatched revision', async (
     else process.env.APP_REVISION = previous;
   }
 });
+
+test('Render health follows its running source commit instead of a stale manual revision', async () => {
+  const keys = ['RENDER', 'RENDER_GIT_COMMIT', 'APP_REVISION'] as const;
+  const previous = keys.map((key) => process.env[key]);
+  process.env.RENDER = 'true';
+  process.env.APP_REVISION = 'a'.repeat(40);
+  const db = createDb(':memory:');
+  try {
+    for (const [source, expected] of [
+      ['b'.repeat(40), 'b'.repeat(40)],
+      ['invalid', 'local-unversioned'],
+    ]) {
+      process.env.RENDER_GIT_COMMIT = source;
+      const server = createApp(db).listen(0, '127.0.0.1');
+      try {
+        await once(server, 'listening');
+        const address = server.address();
+        assert.ok(address && typeof address !== 'string');
+        const response = await fetch(`http://127.0.0.1:${address.port}/api/health`);
+        assert.equal(response.headers.get('x-app-revision'), expected);
+      } finally {
+        await new Promise((resolve) => server.close(resolve));
+      }
+    }
+  } finally {
+    db.close();
+    keys.forEach((key, index) => {
+      if (previous[index] === undefined) delete process.env[key];
+      else process.env[key] = previous[index];
+    });
+  }
+});

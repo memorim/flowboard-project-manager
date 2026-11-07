@@ -46,8 +46,10 @@ export function createApp(
       throw new Error('FLOW_TRUST_PROXY_HOPS must be 1..3');
     app.set('trust proxy', hops);
   }
-  const revision = /^[a-f0-9]{40}$/i.test(process.env.APP_REVISION || '')
-    ? process.env.APP_REVISION
+  const sourceRevision =
+    process.env.RENDER === 'true' ? process.env.RENDER_GIT_COMMIT : process.env.APP_REVISION;
+  const revision = /^[a-f0-9]{40}$/i.test(sourceRevision || '')
+    ? sourceRevision
     : 'local-unversioned';
   app.use('/api/health', (_req, res, next) => {
     res.set('X-App-Revision', revision);
